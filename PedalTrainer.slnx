@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PedalTrainer.App/PedalTrainer.App.csproj" />
+    <Project Path="src/PedalTrainer.Core/PedalTrainer.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PedalTrainer.Tests/PedalTrainer.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/PedalTrainer.Probe/PedalTrainer.Probe.csproj" />
+  </Folder>
+</Solution>

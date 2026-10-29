@@ -1,0 +1,31 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compilar e testar
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restaurar
+        run: dotnet restore src/PedalTrainer.App/PedalTrainer.App.csproj
+
+      - name: Compilar
+        run: dotnet build src/PedalTrainer.App/PedalTrainer.App.csproj -c Release --no-restore
+
+      - name: Testar
+        run: dotnet test tests/PedalTrainer.Tests/PedalTrainer.Tests.csproj -c Release

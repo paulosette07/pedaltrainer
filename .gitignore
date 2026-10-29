@@ -1,0 +1,38 @@
+# ---------- Build ----------
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ---------- Publicação ----------
+# O .exe pronto para download fica em dist/, mas as pastas de build não entram no repositório.
+dist/publish/
+dist/*.pdb
+dist/*.dll
+dist/*.json
+
+# ---------- Ferramentas ----------
+.vs/
+.vscode/
+.idea/
+TestResults/
+*.trx
+*.coverage
+coverage*.xml
+
+# ---------- Artefatos locais de depuração ----------
+*.log
+/tmp/
+/pedal-probe.csv
+/PedalTrainer.slnx.user
+
+# ---------- Sistema ----------
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,281 @@
+<UserControl x:Class="PedalTrainer.App.Views.CalibrationView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="Transparent"
+             TextOptions.TextFormattingMode="Display">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="2,0,0,12">
+            <TextBlock Text="CALIBRAÇÃO DOS PEDIAIS" Style="{StaticResource SectionText}" />
+            <TextBlock Text="A Simsonn aparece como controlador genérico. Use os assistentes para descobrir qual eixo pertence a cada pedal e qual é o curso real da Load Cell."
+                       Style="{StaticResource BodyText}"
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       MaxWidth="900"
+                       HorizontalAlignment="Left"
+                       Margin="0,4,0,0" />
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ================= Eixos e faixa ================= -->
+            <Border Grid.Column="0" Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock Text="MAPEAMENTO E FAIXA" Style="{StaticResource SectionText}" />
+                        <TextBlock Text="{Binding DeviceName}"
+                                   DockPanel.Dock="Right"
+                                   Style="{StaticResource CaptionText}"
+                                   TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding PedalModelName, StringFormat={}Modelo: {0}}"
+                               Style="{StaticResource CaptionText}"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               Margin="0,4,0,0" />
+
+                    <Border Background="{StaticResource SurfaceRaisedBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="10,8"
+                            Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="{Binding AutoMapperText}" Style="{StaticResource CaptionText}" />
+                            <TextBlock Text="{Binding DetectedAxesText}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontSize="11.5"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       Margin="0,3,0,0"
+                                       TextWrapping="Wrap" />
+                            <Button Content="Usar eixos detectados"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Command="{Binding UseDetectedCommand}"
+                                    HorizontalAlignment="Left"
+                                    Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Eixo do FREIO" Style="{StaticResource CaptionText}" Margin="0,14,0,4" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <ComboBox Grid.Column="0"
+                                  Style="{StaticResource FlatComboBox}"
+                                  ItemsSource="{Binding AxisOptions}"
+                                  SelectedIndex="{Binding BrakeAxis}" />
+
+                        <Button Grid.Column="2"
+                                Content="Detectar freio"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding AutoDetectBrakeCommand}" />
+                    </Grid>
+
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Mínimo bruto" Style="{StaticResource CaptionText}" />
+                            <TextBox Style="{StaticResource FlatTextBox}"
+                                     Margin="0,4,0,0"
+                                     Text="{Binding BrakeMin, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Máximo bruto" Style="{StaticResource CaptionText}" />
+                            <TextBox Style="{StaticResource FlatTextBox}"
+                                     Margin="0,4,0,0"
+                                     Text="{Binding BrakeMax, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Rectangle Height="1" Fill="{StaticResource BorderBrush}" Margin="0,16,0,14" />
+
+                    <TextBlock Text="Eixo do ACELERADOR" Style="{StaticResource CaptionText}" Margin="0,0,0,4" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <ComboBox Grid.Column="0"
+                                  Style="{StaticResource FlatComboBox}"
+                                  ItemsSource="{Binding AxisOptions}"
+                                  SelectedIndex="{Binding ThrottleAxis}" />
+
+                        <Button Grid.Column="2"
+                                Content="Detectar acelerador"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding AutoDetectThrottleCommand}" />
+                    </Grid>
+
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Mínimo bruto" Style="{StaticResource CaptionText}" />
+                            <TextBox Style="{StaticResource FlatTextBox}"
+                                     Margin="0,4,0,0"
+                                     Text="{Binding ThrottleMin, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Máximo bruto" Style="{StaticResource CaptionText}" />
+                            <TextBox Style="{StaticResource FlatTextBox}"
+                                     Margin="0,4,0,0"
+                                     Text="{Binding ThrottleMax, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- ================= Ajustes finos ================= -->
+            <Border Grid.Column="2" Style="{StaticResource CardBorder}">
+                <StackPanel>
+                    <TextBlock Text="SENSIBILIDADE DA LOAD CELL" Style="{StaticResource SectionText}" />
+
+                    <DockPanel Margin="0,14,0,0">
+                        <TextBlock Text="Zona morta do freio" Style="{StaticResource CaptionText}" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding BrakeDeadzonePercent, StringFormat={}{0:0}%}"
+                                   Style="{StaticResource CaptionText}"
+                                   FontFamily="{StaticResource MonoFont}" />
+                    </DockPanel>
+                    <Slider Style="{StaticResource FlatSlider}"
+                            Minimum="0" Maximum="30"
+                            Value="{Binding BrakeDeadzonePercent}" />
+
+                    <DockPanel Margin="0,10,0,0">
+                        <TextBlock Text="Zona morta do acelerador" Style="{StaticResource CaptionText}" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding ThrottleDeadzonePercent, StringFormat={}{0:0}%}"
+                                   Style="{StaticResource CaptionText}"
+                                   FontFamily="{StaticResource MonoFont}" />
+                    </DockPanel>
+                    <Slider Style="{StaticResource FlatSlider}"
+                            Minimum="0" Maximum="30"
+                            Value="{Binding ThrottleDeadzonePercent}" />
+
+                    <DockPanel Margin="0,10,0,0">
+                        <TextBlock Text="Curva do freio" Style="{StaticResource CaptionText}" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding BrakeExponent, StringFormat={}{0:0.00}}"
+                                   Style="{StaticResource CaptionText}"
+                                   FontFamily="{StaticResource MonoFont}" />
+                    </DockPanel>
+                    <Slider Style="{StaticResource FlatSlider}"
+                            Minimum="0.5" Maximum="2"
+                            Value="{Binding BrakeExponent}" />
+
+                    <DockPanel Margin="0,10,0,0">
+                        <TextBlock Text="Curva do acelerador" Style="{StaticResource CaptionText}" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding ThrottleExponent, StringFormat={}{0:0.00}}"
+                                   Style="{StaticResource CaptionText}"
+                                   FontFamily="{StaticResource MonoFont}" />
+                    </DockPanel>
+                    <Slider Style="{StaticResource FlatSlider}"
+                            Minimum="0.5" Maximum="2"
+                            Value="{Binding ThrottleExponent}" />
+
+                    <DockPanel Margin="0,10,0,0">
+                        <TextBlock Text="Suavização do sinal" Style="{StaticResource CaptionText}" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding SmoothingAlpha, StringFormat={}{0:0.00}}"
+                                   Style="{StaticResource CaptionText}"
+                                   FontFamily="{StaticResource MonoFont}" />
+                    </DockPanel>
+                    <Slider Style="{StaticResource FlatSlider}"
+                            Minimum="0.1" Maximum="1"
+                            Value="{Binding SmoothingAlpha}" />
+
+                    <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                        <CheckBox Style="{StaticResource FlatCheckBox}"
+                                  Content="Inverter freio"
+                                  IsChecked="{Binding InvertBrake}"
+                                  Margin="0,0,20,0" />
+                        <CheckBox Style="{StaticResource FlatCheckBox}"
+                                  Content="Inverter acelerador"
+                                  IsChecked="{Binding InvertThrottle}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ================= Leitura ao vivo e ações ================= -->
+        <Border Grid.Row="2" Style="{StaticResource RaisedCardBorder}" Margin="0,14,0,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Restaurar faixa observada"
+                            Style="{StaticResource SecondaryButton}"
+                            Command="{Binding ResetCommand}"
+                            Margin="0,0,8,0" />
+                    <Button Content="Salvar calibração"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding SaveCommand}" />
+                </StackPanel>
+
+                <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,26,0">
+                        <TextBlock Text="Leitura agora" Style="{StaticResource CaptionText}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding LiveBrakeText}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource AccentBrush}" />
+                            <TextBlock Text=" freio  ·  " Style="{StaticResource CaptionText}" />
+                            <TextBlock Text="{Binding LiveThrottleText}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontWeight="Bold"
+                                       Foreground="{StaticResource ThrottleBrush}" />
+                            <TextBlock Text=" acelerador" Style="{StaticResource CaptionText}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Margin="0,0,26,0" MaxWidth="230">
+                        <TextBlock Text="Eixos brutos" Style="{StaticResource CaptionText}" />
+                        <TextBlock Text="{Binding RawAxesText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="11"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="{Binding WizardMessage}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource CaptionText}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

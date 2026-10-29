@@ -1,0 +1,42 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publicar executavel
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Testar
+        run: dotnet test tests/PedalTrainer.Tests/PedalTrainer.Tests.csproj -c Release
+
+      - name: Publicar executavel unico
+        run: dotnet publish src/PedalTrainer.App/PedalTrainer.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o dist/publish
+
+      - name: Guardar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: PedalTrainer-win-x64
+          path: dist/publish/PedalTrainer.exe
+
+      - name: Anexar na release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/publish/PedalTrainer.exe
+          generate_release_notes: true

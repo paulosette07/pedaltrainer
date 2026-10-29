@@ -1,0 +1,369 @@
+<UserControl x:Class="PedalTrainer.App.Views.DrillView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:PedalTrainer.App.Controls"
+             Background="Transparent"
+             TextOptions.TextFormattingMode="Display">
+
+    <UserControl.Resources>
+        <Style x:Key="ProgramListItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Root"
+                                Background="Transparent"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{StaticResource SurfaceRaisedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ResultList" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="336" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="262" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ================= Biblioteca de programas ================= -->
+        <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,12,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="ARQUIVOS DE TREINO" Style="{StaticResource SectionText}" />
+                    <TextBlock Text="Cada arquivo .drill.json é uma sequência de exercícios com pedal."
+                               Style="{StaticResource CaptionText}"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,0" />
+                </StackPanel>
+
+                <ListBox Grid.Row="1"
+                         x:Name="ProgramList"
+                         Margin="0,10,0,0"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ItemContainerStyle="{StaticResource ProgramListItem}"
+                         ItemsSource="{Binding Programs}"
+                         SelectedItem="{Binding SelectedProgram}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <TextBlock Text="{Binding DisplayName}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding Summary}"
+                                           Style="{StaticResource CaptionText}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="8" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0"
+                                Content="Iniciar programa"
+                                Style="{StaticResource PrimaryButton}"
+                                Command="{Binding StartCommand}" />
+                        <Button Grid.Column="2"
+                                Content="Pular"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding SkipCommand}" />
+                        <Button Grid.Column="4"
+                                Content="Parar"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding StopCommand}" />
+                    </Grid>
+
+                    <UniformGrid Columns="4" Margin="0,8,0,0">
+                        <Button Content="Importar"
+                                Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,6,0"
+                                Command="{Binding ImportCommand}" />
+                        <Button Content="Exportar"
+                                Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,6,0"
+                                Command="{Binding ExportCommand}" />
+                        <Button Content="Recarregar"
+                                Style="{StaticResource SecondaryButton}"
+                                Margin="0,0,6,0"
+                                Command="{Binding ReloadCommand}" />
+                        <Button Content="Pasta"
+                                Style="{StaticResource SecondaryButton}"
+                                Command="{Binding OpenFolderCommand}" />
+                    </UniformGrid>
+
+                    <Button Content="Regravar programas padrão"
+                            Style="{StaticResource SecondaryButton}"
+                            Margin="0,8,0,0"
+                            Command="{Binding RestoreDefaultsCommand}" />
+
+                    <TextBlock Text="{Binding Message}"
+                               Style="{StaticResource CaptionText}"
+                               TextWrapping="Wrap"
+                               Margin="0,8,0,0" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                    <Rectangle Height="1" Fill="{StaticResource BorderBrush}" Margin="0,0,0,10" />
+                    <TextBlock Text="ETAPAS DO PROGRAMA" Style="{StaticResource SectionText}" />
+                    <ItemsControl ItemsSource="{Binding StepPreview}" Margin="0,6,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           Style="{StaticResource CaptionText}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,3" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ================= Exercício ================= -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Style="{StaticResource CardBorder}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="188" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding StageText}"
+                                       FontSize="10.5"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource AccentBrush}" />
+                            <TextBlock Text="EXERCÍCIO ATUAL" Style="{StaticResource SectionText}" />
+                        </DockPanel>
+
+                        <TextBlock Text="{Binding StepLabel}"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="0,6,0,0" />
+
+                        <TextBlock Text="{Binding InstructionText}"
+                                   Style="{StaticResource BodyText}"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,6,0,0" />
+
+                        <DockPanel Margin="0,12,0,0">
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding StepCounterText}"
+                                       Style="{StaticResource CaptionText}" />
+                            <TextBlock Text="{Binding RepetitionText}"
+                                       Style="{StaticResource CaptionText}" />
+                        </DockPanel>
+
+                        <ProgressBar x:Name="RepetitionProgressBar"
+                                     Style="{StaticResource FlatProgress}"
+                                     Minimum="0" Maximum="1"
+                                     Margin="0,6,0,0" />
+
+                        <ProgressBar x:Name="ProgramProgressBar"
+                                     Style="{StaticResource FlatProgress}"
+                                     Minimum="0" Maximum="1"
+                                     Foreground="{StaticResource ReferenceBrush}"
+                                     Margin="0,6,0,0" />
+
+                        <DockPanel Margin="0,6,0,0">
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding ElapsedText}"
+                                       Style="{StaticResource CaptionText}"
+                                       FontFamily="{StaticResource MonoFont}" />
+                            <TextBlock Text="Progresso do programa" Style="{StaticResource CaptionText}" />
+                        </DockPanel>
+                    </StackPanel>
+
+                    <Border Grid.Column="1" Style="{StaticResource RaisedCardBorder}" Padding="8">
+                        <controls:PrecisionGauge x:Name="Gauge"
+                                                 Height="150"
+                                                 Caption="NOTA DA REPETIÇÃO" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Style="{StaticResource CardBorder}" Padding="12,10" Margin="0,12,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Margin="2,0,2,8">
+                        <TextBlock Text="CURVA-ALVO × SUA ENTRADA" Style="{StaticResource SectionText}" VerticalAlignment="Center" />
+
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource ReferenceBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="alvo" Style="{StaticResource CaptionText}" Margin="5,0,12,0" />
+
+                            <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="dentro" Style="{StaticResource CaptionText}" Margin="5,0,12,0" />
+
+                            <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource DangerBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="fora" Style="{StaticResource CaptionText}" Margin="5,0,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <controls:DrillPlot Grid.Row="1" x:Name="Plot" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Style="{StaticResource CardBorder}" Margin="0,12,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="26" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <controls:PedalBar Grid.Column="0" x:Name="BrakeBar" Label="FREIO" Height="42" />
+
+                    <controls:PedalBar Grid.Column="2" x:Name="ThrottleBar" Label="ACELERADOR" Height="42" />
+
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="18,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Alvo" Style="{StaticResource CaptionText}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding TargetText}" Style="{StaticResource MetricValueText}" />
+                                <TextBlock Text="desta rep." Style="{StaticResource MetricUnitText}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Margin="22,0,0,0">
+                            <TextBlock Text="Nota atual" Style="{StaticResource CaptionText}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding ScoreText}" Style="{StaticResource MetricValueText}" />
+                                <TextBlock Text="{Binding GradeText}" Style="{StaticResource MetricUnitText}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ================= Repetições concluídas ================= -->
+        <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="12,0,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="REPETIÇÕES" Style="{StaticResource SectionText}" />
+
+                <StackPanel Grid.Row="1" Margin="0,8,0,10">
+                    <TextBlock Text="{Binding ResultSummary}"
+                               Style="{StaticResource CaptionText}"
+                               TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Média" Style="{StaticResource CaptionText}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding AverageText}" Style="{StaticResource MetricValueText}" />
+                                <TextBlock Text="pts" Style="{StaticResource MetricUnitText}" />
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Margin="20,0,0,0">
+                            <TextBlock Text="Melhor" Style="{StaticResource CaptionText}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding BestText}" Style="{StaticResource MetricValueText}" />
+                                <TextBlock Text="pts" Style="{StaticResource MetricUnitText}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <ListBox Grid.Row="2"
+                         Style="{StaticResource ResultList}"
+                         ItemsSource="{Binding Results}"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{StaticResource SurfaceRaisedBrush}"
+                                    CornerRadius="7"
+                                    Padding="9,6"
+                                    Margin="0,0,0,6">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right"
+                                                   Text="{Binding Grade}"
+                                                   FontFamily="{StaticResource MonoFont}"
+                                                   FontSize="13"
+                                                   FontWeight="Bold"
+                                                   Foreground="{StaticResource AccentBrush}" />
+                                        <TextBlock Text="{Binding ScoreText}"
+                                                   FontFamily="{StaticResource MonoFont}"
+                                                   FontSize="15"
+                                                   FontWeight="Bold" />
+                                        <TextBlock Text=" pts"
+                                                   Style="{StaticResource MetricUnitText}"
+                                                   Margin="3,0,0,2" />
+                                    </DockPanel>
+                                    <TextBlock Text="{Binding StepLabel}"
+                                               Style="{StaticResource CaptionText}"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,2,0,0" />
+                                    <TextBlock Text="{Binding Detail}"
+                                               Style="{StaticResource CaptionText}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

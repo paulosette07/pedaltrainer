@@ -1,0 +1,240 @@
+<UserControl x:Class="PedalTrainer.App.Views.TrainingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:PedalTrainer.App.Controls"
+             Background="Transparent"
+             TextOptions.TextFormattingMode="Display">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= HUD ================= -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="250" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Precisão -->
+            <Border Grid.Column="0" Style="{StaticResource CardBorder}" Padding="10,8,10,4">
+                <controls:PrecisionGauge x:Name="Gauge"
+                                         Height="148"
+                                         Caption="PRECISÃO DA FRENAGEM" />
+            </Border>
+
+            <!-- Estado do desafio -->
+            <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="12,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding PhaseText}"
+                                   FontSize="10.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentBrush}" />
+                        <TextBlock Text="DESAFIO ATUAL" Style="{StaticResource SectionText}" />
+                    </DockPanel>
+
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding ZoneName}"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Margin="0,6,0,0"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <TextBlock Grid.Row="2"
+                               Text="{Binding StatusMessage}"
+                               Style="{StaticResource BodyText}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               Margin="0,6,0,6"
+                               VerticalAlignment="Top" />
+
+                    <StackPanel Grid.Row="3">
+                        <ProgressBar Style="{StaticResource FlatProgress}"
+                                     x:Name="ChallengeProgressBar"
+                                     Minimum="0" Maximum="1" />
+                        <DockPanel Margin="0,8,0,0">
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding LastResultText}"
+                                       Style="{StaticResource CaptionText}" />
+                            <TextBlock Text="ÚLTIMA CURVA" Style="{StaticResource SectionText}" />
+                        </DockPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Sessão -->
+            <Border Grid.Column="2" Style="{StaticResource CardBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="SESSÃO" Style="{StaticResource SectionText}" />
+
+                    <UniformGrid Grid.Row="1" Columns="2" Margin="0,10,0,0">
+                        <StackPanel Margin="0,0,0,10">
+                            <TextBlock Text="Sequência" Style="{StaticResource CaptionText}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding StreakText}" Style="{StaticResource MetricValueText}" />
+                                <TextBlock Text="acertos" Style="{StaticResource MetricUnitText}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Margin="0,0,0,10">
+                            <TextBlock Text="Melhor nota" Style="{StaticResource CaptionText}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding BestText}" Style="{StaticResource MetricValueText}" />
+                                <TextBlock Text="pts" Style="{StaticResource MetricUnitText}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel>
+                            <TextBlock Text="Média" Style="{StaticResource CaptionText}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding AverageText}" Style="{StaticResource MetricValueText}" />
+                                <TextBlock Text="pts" Style="{StaticResource MetricUnitText}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel>
+                            <TextBlock Text="Melhor na zona" Style="{StaticResource CaptionText}" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding BestForZoneText}" Style="{StaticResource MetricValueText}" />
+                                <TextBlock Text="pts" Style="{StaticResource MetricUnitText}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </UniformGrid>
+
+                    <DockPanel Grid.Row="2" Margin="0,4,0,0">
+                        <TextBlock Text="Zonas na referência" Style="{StaticResource CaptionText}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ZoneCountText}"
+                                   Style="{StaticResource CaptionText}"
+                                   HorizontalAlignment="Right"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                    </DockPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- ================= Gráfico ================= -->
+        <Border Grid.Row="1" Style="{StaticResource CardBorder}" Padding="12,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Margin="2,0,2,8">
+                    <TextBlock Text="REFERÊNCIA × SUA ENTRADA" Style="{StaticResource SectionText}" VerticalAlignment="Center" />
+
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource ReferenceBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="fantasma" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
+
+                        <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="na tolerância" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
+
+                        <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource DangerBrush}" VerticalAlignment="Center" />
+                        <TextBlock Text="fora" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
+
+                        <Rectangle Width="14" Height="6" RadiusX="2" RadiusY="2" Fill="#333FD0FF" VerticalAlignment="Center" />
+                        <TextBlock Text="banda" Style="{StaticResource CaptionText}" Margin="5,0,0,0" />
+                    </StackPanel>
+                </DockPanel>
+
+                <controls:TracePlot Grid.Row="1" x:Name="Plot" />
+            </Grid>
+        </Border>
+
+        <!-- ================= Painel inferior ================= -->
+        <Grid Grid.Row="2" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource CardBorder}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="26" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <controls:PedalBar x:Name="BrakeBar" Label="FREIO" Height="42" />
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="Referência:" Style="{StaticResource CaptionText}" />
+                            <TextBlock Text="{Binding ReferenceBrakeText}"
+                                       Style="{StaticResource CaptionText}"
+                                       Foreground="{StaticResource ReferenceBrush}"
+                                       Margin="4,0,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <controls:PedalBar x:Name="ThrottleBar" Label="ACELERADOR" Height="42" />
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="Referência:" Style="{StaticResource CaptionText}" />
+                            <TextBlock Text="{Binding ReferenceThrottleText}"
+                                       Style="{StaticResource CaptionText}"
+                                       Foreground="{StaticResource ReferenceBrush}"
+                                       Margin="4,0,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="12,0,0,0" MinWidth="430">
+                <UniformGrid Columns="4">
+                    <StackPanel>
+                        <TextBlock Text="Velocidade" Style="{StaticResource CaptionText}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding SpeedText}" Style="{StaticResource MetricValueText}" />
+                            <TextBlock Text="km/h" Style="{StaticResource MetricUnitText}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="Erro atual" Style="{StaticResource CaptionText}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding ErrorText}" Style="{StaticResource MetricValueText}" />
+                            <TextBlock Text="pedal" Style="{StaticResource MetricUnitText}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="RMSE" Style="{StaticResource CaptionText}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding RmseText}" Style="{StaticResource MetricValueText}" />
+                            <TextBlock Text="curva" Style="{StaticResource MetricUnitText}" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="Acelerador" Style="{StaticResource CaptionText}" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding ThrottleAccuracyText}" Style="{StaticResource MetricValueText}" />
+                            <TextBlock Text="precisão" Style="{StaticResource MetricUnitText}" />
+                        </StackPanel>
+                    </StackPanel>
+                </UniformGrid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
