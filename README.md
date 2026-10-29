@@ -12,17 +12,24 @@ fechado (modo simulado, para treinar em qualquer lugar).
 
 ## Download
 
-**[⬇ Baixar PedalTrainer.exe (Windows x64, autocontido)](../../raw/main/dist/PedalTrainer.exe)**
+**[⬇ Baixar PedalTrainer.exe](https://github.com/paulosette07/pedaltrainer/releases/latest/download/PedalTrainer.exe)**
+— Windows x64, arquivo único, ~69 MB.
 
-- Arquivo único, ~69 MB, **não precisa instalar .NET** nem dependências.
+O mesmo binário está disponível em dois lugares:
+
+- **Release** (link acima): versão publicada, compilada pelo CI a cada tag em
+  [releases](https://github.com/paulosette07/pedaltrainer/releases).
+- **Direto do repositório**: [`dist/PedalTrainer.exe`](dist/PedalTrainer.exe), sempre
+  atualizado no branch `main`.
+
+Detalhes:
+
+- **Não precisa instalar .NET** nem nenhuma dependência: o executável é autocontido.
 - Windows 10/11 64 bits.
 - O Windows pode mostrar o aviso do SmartScreen na primeira execução (binário sem
   assinatura digital). Use "Mais informações → Executar assim mesmo".
 - Não há instalador: baixe, coloque numa pasta e execute. Os dados ficam em
-  `%APPDATA%\PedalTrainer`.
-
-> Cada execução cria/atualiza seu `settings.json` em `%APPDATA%\PedalTrainer`; nada é
-> escrito na pasta do executável.
+  `%APPDATA%\PedalTrainer` — nada é escrito ao lado do executável.
 
 ---
 
