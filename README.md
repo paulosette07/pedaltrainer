@@ -341,6 +341,22 @@ Atalho para inspecionar controladores e eixos sem abrir a interface:
 dotnet run --project tools/PedalTrainer.Probe/PedalTrainer.Probe.csproj
 ```
 
+### Ícone do aplicativo
+
+O ícone (tile escuro com o símbolo do pedal em verde, nas cores do tema) é usado em três
+lugares a partir do mesmo arquivo: no executável (`ApplicationIcon`, o que o Explorer e a
+barra de tarefas mostram), na janela (`Window.Icon`) e no recurso embutido no assembly.
+
+- Fonte vetorial: [`assets/branding/pedaltrainer-icon.svg`](assets/branding/pedaltrainer-icon.svg)
+- Binário usado no build: [`src/PedalTrainer.App/Assets/pedaltrainer.ico`](src/PedalTrainer.App/Assets/pedaltrainer.ico)
+  — 16, 20, 24, 32, 40, 48, 64, 128 e 256 px em um único arquivo.
+
+Para regenerar o `.ico` depois de mexer no SVG ou na paleta:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/branding/New-AppIcon.ps1
+```
+
 ---
 
 ## Limitações conhecidas
