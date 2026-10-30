@@ -3,9 +3,9 @@ using System.Diagnostics;
 using System.Threading;
 using PedalTrainer.Core.Drills;
 using PedalTrainer.Core.Input;
-using PedalTrainer.Core.IRacing;
 using PedalTrainer.Core.Models;
 using PedalTrainer.Core.Recording;
+using PedalTrainer.Core.Telemetry;
 
 namespace PedalTrainer.Core.Training;
 
@@ -112,11 +112,17 @@ public sealed class TrainingEngine : IDisposable
         _trace.Clear();
     }
 
-    /// <summary>Troca a fonte de telemetria do carro (iRacing ou nula).</summary>
+    /// <summary>Fonte de telemetria do carro em uso (iRacing, ACC, AC EVO, AMS2 ou LMU).</summary>
+    public ICarTelemetrySource CarSource => _carSource;
+
+    /// <summary>Troca a fonte de telemetria do carro (simulador escolhido ou nula).</summary>
     public void SetCarTelemetrySource(ICarTelemetrySource source)
     {
         _carSource.Stop();
+        _carSource.Dispose();
+
         _carSource = source ?? new NullCarTelemetrySource();
+        Recorder.SimulatorName = _carSource.Simulator.DisplayName;
         _carSource.Start();
     }
 
@@ -366,6 +372,8 @@ public sealed class TrainingEngine : IDisposable
             DeviceConnected = device?.IsConnected ?? false,
             DeviceStatus = DescribeDevice(device),
             InputRateHz = device?.SampleRateHz ?? 0,
+            SimulatorName = _carSource.ConnectedSimulatorName,
+            SimulatorStatus = _carSource.StatusDescription,
             UpdatedAtUtc = DateTime.UtcNow
         };
     }

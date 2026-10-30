@@ -249,6 +249,9 @@ public sealed class IRacingSharedMemoryReader : IDisposable
         return end == 0 ? string.Empty : Encoding.ASCII.GetString(buffer, 0, end);
     }
 
+    /// <summary>Fecha o mapeamento sem inutilizar o leitor (permite reconectar depois).</summary>
+    public void Close() => CloseResources();
+
     private void CloseResources()
     {
         _bindings.Clear();

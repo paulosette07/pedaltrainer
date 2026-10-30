@@ -6,10 +6,10 @@ using PedalTrainer.Core.Models;
 namespace PedalTrainer.Core.Recording;
 
 /// <summary>
-/// Grava uma volta do iRacing e a converte em volta de referência.
-/// Arma na troca de volta e fecha na troca seguinte, então a referência sempre
-/// cobre uma volta inteira. A distância em metros sai da integração da velocidade,
-/// calibrada pelo percentual de pista efetivamente percorrido.
+/// Grava uma volta do simulador conectado (iRacing, ACC, AC EVO, AMS2 ou LMU) e a converte
+/// em volta de referência. Arma na troca de volta e fecha na troca seguinte, então a
+/// referência sempre cobre uma volta inteira. A distância em metros sai da integração da
+/// velocidade, calibrada pelo percentual de pista efetivamente percorrido.
 /// </summary>
 public sealed class LapRecorder
 {
@@ -43,6 +43,9 @@ public sealed class LapRecorder
     private double _travelledMeters;
     private double _progress;
     private bool _hasSample;
+
+    /// <summary>Nome do simulador em uso, usado nas mensagens de estado.</summary>
+    public string SimulatorName { get; set; } = "simulador";
 
     /// <summary>Estado atual do gravador.</summary>
     public LapRecordingState State
@@ -164,7 +167,7 @@ public sealed class LapRecorder
 
             if (!car.IsConnected)
             {
-                Abort("Gravação cancelada: o iRacing não está publicando telemetria.");
+                Abort($"Gravação cancelada: o {SimulatorName} não está publicando telemetria.");
                 return;
             }
 
@@ -194,7 +197,7 @@ public sealed class LapRecorder
 
             if (sessionRestarted)
             {
-                Abort("Gravação cancelada: a sessão do iRacing foi reiniciada.");
+                Abort($"Gravação cancelada: a sessão do {SimulatorName} foi reiniciada.");
                 return;
             }
 

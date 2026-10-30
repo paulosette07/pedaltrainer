@@ -5,7 +5,8 @@ using PedalTrainer.Core.Reference;
 namespace PedalTrainer.Tests;
 
 /// <summary>
-/// O gravador é o caminho para o piloto criar a própria referência a partir de uma volta do iRacing.
+/// O gravador é o caminho para o piloto criar a própria referência a partir de uma volta
+/// do simulador conectado (iRacing, ACC, AC EVO, AMS2 ou LMU).
 /// </summary>
 public sealed class LapRecorderTests
 {
@@ -88,7 +89,18 @@ public sealed class LapRecorderTests
         recorder.Observe(CarTelemetry.Disconnected(0));
 
         Assert.False(recorder.IsActive);
-        Assert.Contains("iRacing", recorder.StatusMessage);
+        Assert.Contains("publicando telemetria", recorder.StatusMessage);
+    }
+
+    [Fact]
+    public void Observe_WithoutSimulator_NamesTheSimulatorInTheMessage()
+    {
+        var recorder = new LapRecorder { SimulatorName = "Assetto Corsa Competizione" };
+
+        recorder.Start();
+        recorder.Observe(CarTelemetry.Disconnected(0));
+
+        Assert.Contains("Assetto Corsa Competizione", recorder.StatusMessage);
     }
 
     [Fact]

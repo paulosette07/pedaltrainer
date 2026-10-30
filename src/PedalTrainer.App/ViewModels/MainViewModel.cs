@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -11,11 +12,11 @@ using Microsoft.Win32;
 using PedalTrainer.Core.Drills;
 using PedalTrainer.Core.Input;
 using PedalTrainer.Core.Input.Pedals;
-using PedalTrainer.Core.IRacing;
 using PedalTrainer.Core.Models;
 using PedalTrainer.Core.Recording;
 using PedalTrainer.Core.Reference;
 using PedalTrainer.Core.Services;
+using PedalTrainer.Core.Telemetry;
 using PedalTrainer.Core.Training;
 
 namespace PedalTrainer.App.ViewModels;
@@ -44,6 +45,8 @@ public sealed class MainViewModel : ObservableObject, IShellActions
     private string _shellMessage = string.Empty;
     private string _referenceTitle = "Nenhuma referência carregada";
     private string _deviceSummary = "Procurando controlador...";
+    private string _simulatorSummary = "Simulador: não conectado";
+    private SimulatorInfo _simulator = SimulatorCatalog.Auto;
     private string _recordButtonText = "Gravar volta";
     private string _recordingStatusText = string.Empty;
     private string _lastRecorderStatus = string.Empty;
@@ -62,6 +65,7 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         _settings = _settingsStore.Load();
         _calibration = _calibrationStore.Load();
         _pedalModel = PedalModelCatalog.Find(_settings.PedalModelId);
+        _simulator = SimulatorCatalog.Parse(_settings.SimulatorId);
 
         Training = new TrainingViewModel(engine);
         Drills = new DrillViewModel(engine, drillProgramStore ?? throw new ArgumentNullException(nameof(drillProgramStore)));
@@ -216,6 +220,9 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         private set => SetProperty(ref _shellMessage, value);
     }
 
+    /// <summary>Versão do app exibida no rodapé, lida dos metadados do executável.</summary>
+    public string AppVersion { get; } = ReadAppVersion();
+
     /// <summary>Nome da referência em uso, para a barra superior.</summary>
     public string ReferenceTitle
     {
@@ -228,6 +235,42 @@ public sealed class MainViewModel : ObservableObject, IShellActions
     {
         get => _deviceSummary;
         private set => SetProperty(ref _deviceSummary, value);
+    }
+
+    /// <summary>Simuladores oferecidos na tela de configurações.</summary>
+    public IReadOnlyList<SimulatorInfo> Simulators => SimulatorCatalog.Selectable;
+
+    /// <summary>Simulador escolhido para a telemetria.</summary>
+    public SimulatorInfo SelectedSimulator => _simulator;
+
+    /// <summary>Estado da telemetria do simulador, para a barra superior.</summary>
+    public string SimulatorSummary
+    {
+        get => _simulatorSummary;
+        private set => SetProperty(ref _simulatorSummary, value);
+    }
+
+    /// <summary>
+    /// Troca o simulador lido: a fonte antiga é encerrada e a nova começa a procurar a
+    /// memória compartilhada na hora. A escolha vai para as preferências.
+    /// </summary>
+    public void SelectSimulator(SimulatorInfo simulator)
+    {
+        ArgumentNullException.ThrowIfNull(simulator);
+
+        _simulator = simulator;
+        _settings.SimulatorId = simulator.IsAuto ? string.Empty : simulator.Id.ToString();
+        _settingsStore.Save(_settings);
+
+        ApplySimulatorSource();
+        OnPropertyChanged(nameof(SelectedSimulator));
+    }
+
+    /// <summary>Monta a fonte de telemetria do simulador escolhido (todos, no automático).</summary>
+    private void ApplySimulatorSource()
+    {
+        Engine.SetCarTelemetrySource(SimTelemetrySourceFactory.Create(_simulator));
+        SimulatorSummary = Engine.CarSource.StatusDescription;
     }
 
     /// <summary>Janela usada pelo DirectInput no nível de cooperação em background.</summary>
@@ -243,7 +286,7 @@ public sealed class MainViewModel : ObservableObject, IShellActions
 
         Engine.ApplySettings(_settings);
         Engine.SetCalibration(_calibration);
-        Engine.SetCarTelemetrySource(new IRacingTelemetrySource());
+        ApplySimulatorSource();
 
         Training.TolerancePercent = _settings.ToleranceBandPercent;
         Training.ShowThrottle = _settings.ShowThrottleTrace;
@@ -448,6 +491,18 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         }
 
         UpdateDeviceSummary();
+        UpdateSimulatorSummary();
+    }
+
+    /// <summary>Atualiza o texto da barra superior com o estado da telemetria do simulador.</summary>
+    private void UpdateSimulatorSummary()
+    {
+        string status = Engine.CarSource.StatusDescription;
+
+        if (status != SimulatorSummary)
+        {
+            SimulatorSummary = status;
+        }
     }
 
     private void UpdateDeviceSummary()
@@ -467,6 +522,23 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         {
             DeviceSummary = status;
         }
+    }
+
+    private static string ReadAppVersion()
+    {
+        Assembly assembly = typeof(MainViewModel).Assembly;
+
+        string? informational = assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+        if (!string.IsNullOrWhiteSpace(informational))
+        {
+            // O SDK anexa "+<commit>" quando há metadados de fonte; o rodapé só quer o número.
+            int separator = informational.IndexOf('+', StringComparison.Ordinal);
+            return separator > 0 ? informational[..separator] : informational;
+        }
+
+        return assembly.GetName().Version?.ToString(3) ?? "0.0.0";
     }
 
     private static bool TryWriteDemoFile(ReferenceLap lap)

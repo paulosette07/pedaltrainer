@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PedalTrainer.Core.Input.Pedals;
 using PedalTrainer.Core.Models;
+using PedalTrainer.Core.Telemetry;
 
 namespace PedalTrainer.App.ViewModels;
 
@@ -20,6 +21,8 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _useSimulatedPedals;
     private PedalDeviceDescriptor? _selectedDevice;
     private PedalModel _selectedPedalModel = PedalModelCatalog.Unknown;
+    private SimulatorInfo _selectedSimulator = SimulatorCatalog.Auto;
+    private string _simulatorHint = SimulatorCatalog.Auto.SetupHint;
     private string _pedalProfileText = string.Empty;
     private string _detectedModelText = string.Empty;
     private string _message = string.Empty;
@@ -38,8 +41,12 @@ public sealed class SettingsViewModel : ObservableObject
 
         LoadFromSettings();
         LoadPedalModels();
+        LoadSimulators();
         RefreshDevices();
     }
+
+    /// <summary>Simuladores suportados, com "detectar automaticamente" primeiro.</summary>
+    public ObservableCollection<SimulatorInfo> Simulators { get; } = new();
 
     /// <summary>Catálogo de pedais do mercado, com o item "não listado" no fim.</summary>
     public ObservableCollection<PedalModel> PedalModels { get; } = new();
@@ -148,6 +155,36 @@ public sealed class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Simulador de onde vem a telemetria. A troca já reconecta a fonte e grava a escolha,
+    /// então a barra superior passa a mostrar o estado do novo simulador imediatamente.
+    /// </summary>
+    public SimulatorInfo SelectedSimulator
+    {
+        get => _selectedSimulator;
+        set
+        {
+            if (value is null || !SetProperty(ref _selectedSimulator, value))
+            {
+                return;
+            }
+
+            SimulatorHint = value.SetupHint;
+            _shell.SelectSimulator(value);
+
+            Message = value.IsAuto
+                ? "Detecção automática ativa: o app procura qualquer simulador suportado."
+                : $"Telemetria passando a ler {value.DisplayName}.";
+        }
+    }
+
+    /// <summary>O que o piloto precisa fazer no jogo escolhido para a telemetria aparecer.</summary>
+    public string SimulatorHint
+    {
+        get => _simulatorHint;
+        private set => SetProperty(ref _simulatorHint, value);
+    }
+
     /// <summary>Resumo do modelo escolhido (hardware, ajustes e observação).</summary>
     public string PedalProfileText
     {
@@ -177,6 +214,23 @@ public sealed class SettingsViewModel : ObservableObject
         ShowThrottleTrace = settings.ShowThrottleTrace;
         UseIRacingAlignment = settings.UseIRacingAlignment;
         UseSimulatedPedals = settings.UseSimulatedPedals;
+    }
+
+    /// <summary>Preenche a lista de simuladores e marca o que está em uso.</summary>
+    private void LoadSimulators()
+    {
+        Simulators.Clear();
+
+        foreach (SimulatorInfo simulator in _shell.Simulators)
+        {
+            Simulators.Add(simulator);
+        }
+
+        _selectedSimulator = _shell.SelectedSimulator;
+        _simulatorHint = _selectedSimulator.SetupHint;
+
+        OnPropertyChanged(nameof(SelectedSimulator));
+        OnPropertyChanged(nameof(SimulatorHint));
     }
 
     private void RefreshDevices()

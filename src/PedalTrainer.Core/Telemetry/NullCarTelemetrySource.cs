@@ -1,13 +1,17 @@
 using PedalTrainer.Core.Models;
 
-namespace PedalTrainer.Core.IRacing;
+namespace PedalTrainer.Core.Telemetry;
 
-/// <summary>Fonte inerte usada quando o iRacing não está disponível.</summary>
+/// <summary>Fonte inerte usada enquanto nenhum simulador está sendo lido.</summary>
 public sealed class NullCarTelemetrySource : ICarTelemetrySource
 {
+    public SimulatorInfo Simulator => SimulatorCatalog.Auto;
+
+    public string ConnectedSimulatorName => string.Empty;
+
     public bool IsConnected => false;
 
-    public string StatusDescription => "iRacing: não conectado";
+    public string StatusDescription => "Simulador: não conectado";
 
     public CarTelemetry Latest => CarTelemetry.Disconnected(0);
 

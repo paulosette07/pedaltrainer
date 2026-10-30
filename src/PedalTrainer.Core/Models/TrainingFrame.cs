@@ -68,5 +68,11 @@ public sealed record TrainingFrame
 
     public double InputRateHz { get; init; }
 
+    /// <summary>Nome curto do simulador conectado (vazio quando nenhum).</summary>
+    public string SimulatorName { get; init; } = string.Empty;
+
+    /// <summary>Texto de estado da fonte de telemetria (ex.: "ACC: ao vivo (volta 3)").</summary>
+    public string SimulatorStatus { get; init; } = "Simulador: não conectado";
+
     public DateTime UpdatedAtUtc { get; init; } = DateTime.UtcNow;
 }

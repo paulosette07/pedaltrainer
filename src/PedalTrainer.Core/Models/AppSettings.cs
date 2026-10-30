@@ -29,6 +29,13 @@ public sealed class AppSettings
     /// <summary>Modelo de pedal escolhido no catálogo (vazio = não listado).</summary>
     public string PedalModelId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Simulador escolhido para a telemetria, guardado como texto
+    /// (<c>Auto</c>, <c>IRacing</c>, <c>AssettoCorsaCompetizione</c>, <c>AssettoCorsaEvo</c>,
+    /// <c>Automobilista2</c>, <c>LeMansUltimate</c>).
+    /// </summary>
+    public string SimulatorId { get; set; } = string.Empty;
+
     /// <summary>Caminho da última volta de referência carregada.</summary>
     public string LastReferencePath { get; set; } = string.Empty;
 

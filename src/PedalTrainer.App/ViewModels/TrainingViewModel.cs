@@ -52,8 +52,8 @@ public sealed class TrainingViewModel : ObservableObject
     private string _referenceName = "Nenhuma";
     private string _deviceText = "Sem controlador";
     private bool _deviceConnected;
-    private string _iRacingText = "iRacing: não conectado";
-    private bool _iRacingConnected;
+    private string _simulatorText = "Simulador: não conectado";
+    private bool _simulatorConnected;
     private string _rateText = "-- Hz";
 
     public TrainingViewModel(TrainingEngine engine)
@@ -118,9 +118,10 @@ public sealed class TrainingViewModel : ObservableObject
 
     public bool DeviceConnected { get => _deviceConnected; private set => SetProperty(ref _deviceConnected, value); }
 
-    public string IRacingText { get => _iRacingText; private set => SetProperty(ref _iRacingText, value); }
+    /// <summary>Estado da telemetria do simulador, exibido na barra superior.</summary>
+    public string SimulatorText { get => _simulatorText; private set => SetProperty(ref _simulatorText, value); }
 
-    public bool IRacingConnected { get => _iRacingConnected; private set => SetProperty(ref _iRacingConnected, value); }
+    public bool SimulatorConnected { get => _simulatorConnected; private set => SetProperty(ref _simulatorConnected, value); }
 
     public string RateText { get => _rateText; private set => SetProperty(ref _rateText, value); }
 
@@ -193,8 +194,8 @@ public sealed class TrainingViewModel : ObservableObject
         ReferenceName = frame.ReferenceName;
         DeviceText = frame.DeviceStatus;
         DeviceConnected = frame.DeviceConnected;
-        IRacingText = frame.Car.IsConnected ? "iRacing: conectado" : "iRacing: não conectado";
-        IRacingConnected = frame.Car.IsConnected;
+        SimulatorText = frame.SimulatorStatus;
+        SimulatorConnected = frame.Car.IsConnected;
         RateText = $"{frame.InputRateHz:0} Hz";
 
         UpdatePlot(frame, hasChallenge);

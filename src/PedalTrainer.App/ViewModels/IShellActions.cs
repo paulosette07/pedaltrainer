@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using PedalTrainer.Core.Input.Pedals;
 using PedalTrainer.Core.Models;
+using PedalTrainer.Core.Telemetry;
 using PedalTrainer.Core.Training;
 
 namespace PedalTrainer.App.ViewModels;
@@ -52,4 +53,13 @@ public interface IShellActions
 
     /// <summary>Aplica uma calibração recém-editada ao motor.</summary>
     void ApplyCalibration(PedalCalibration calibration, bool persist);
+
+    /// <summary>Simuladores disponíveis para escolha, com "detectar automaticamente" primeiro.</summary>
+    IReadOnlyList<SimulatorInfo> Simulators { get; }
+
+    /// <summary>Simulador escolhido para a telemetria (nunca nulo).</summary>
+    SimulatorInfo SelectedSimulator { get; }
+
+    /// <summary>Troca o simulador lido e reconecta a fonte de telemetria na hora.</summary>
+    void SelectSimulator(SimulatorInfo simulator);
 }
