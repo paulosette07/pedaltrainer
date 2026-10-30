@@ -28,6 +28,49 @@ jobs:
       - name: Publicar executavel unico
         run: dotnet publish src/PedalTrainer.App/PedalTrainer.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none -o dist/publish
 
+      # O aviso do SmartScreen ("O Windows protegeu o computador") so desaparece com
+      # assinatura de code signing. Sem os secrets abaixo o build continua funcionando,
+      # apenas gera um executavel sem assinatura.
+      - name: Detectar certificado de assinatura
+        id: cert
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.PEDALTRAINER_PFX_BASE64 }}
+        run: |
+          $presente = -not [string]::IsNullOrWhiteSpace($env:PFX_BASE64)
+          "presente=$($presente.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+          if (-not $presente) {
+            Write-Host "::warning title=Build sem assinatura::PEDALTRAINER_PFX_BASE64 nao configurado: o executavel sai sem assinatura e o SmartScreen vai avisar."
+          }
+
+      - name: Assinar executavel
+        if: steps.cert.outputs.presente == 'true'
+        shell: pwsh
+        env:
+          PEDALTRAINER_PFX_BASE64: ${{ secrets.PEDALTRAINER_PFX_BASE64 }}
+          PEDALTRAINER_PFX_PASSWORD: ${{ secrets.PEDALTRAINER_PFX_PASSWORD }}
+        run: ./tools/signing/Sign-Binary.ps1 -Path dist/publish/PedalTrainer.exe
+
+      - name: Conferir assinatura
+        shell: pwsh
+        env:
+          ASSINATURA_ESPERADA: ${{ steps.cert.outputs.presente }}
+        run: |
+          $assinatura = Get-AuthenticodeSignature -LiteralPath 'dist/publish/PedalTrainer.exe'
+          Write-Host "Status da assinatura: $($assinatura.Status)"
+
+          if ($assinatura.SignerCertificate) {
+            Write-Host "Signatario: $($assinatura.SignerCertificate.Subject)"
+            Write-Host "Carimbo de tempo: $($assinatura.TimeStamperCertificate.Subject)"
+          }
+
+          if ($env:ASSINATURA_ESPERADA -eq 'true' -and $assinatura.Status -ne 'Valid') {
+            throw "O executavel deveria estar assinado, mas o status e $($assinatura.Status)."
+          }
+
+          $assinatura | Out-String | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
       - name: Guardar artefato
         uses: actions/upload-artifact@v4
         with:

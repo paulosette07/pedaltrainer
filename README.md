@@ -30,9 +30,36 @@ Detalhes:
 - **Não precisa instalar .NET** nem nenhuma dependência: o executável é autocontido.
 - Windows 10/11 64 bits.
 - O Windows pode mostrar o aviso do SmartScreen na primeira execução (binário sem
-  assinatura digital). Use "Mais informações → Executar assim mesmo".
+  assinatura digital). Clique em **Mais informações → Executar assim mesmo** — veja
+  [Aviso do SmartScreen](#aviso-do-smartscreen) para o motivo e para a correção definitiva.
 - Não há instalador: baixe, coloque numa pasta e execute. Os dados ficam em
   `%APPDATA%\PedalTrainer` — nada é escrito ao lado do executável.
+
+---
+
+## Aviso do SmartScreen
+
+Na primeira execução o Windows pode mostrar **"O Windows protegeu o computador"** com o
+publicador como *Desconhecido*. Não é detecção de vírus: o Windows marca todo arquivo baixado
+da internet (*Mark of the Web*) e o SmartScreen bloqueia executáveis **sem assinatura digital**
+que ainda não têm histórico de downloads. Como o Pedal Trainer é um projeto pequeno, sem
+certificado de code signing, o aviso aparece.
+
+Para rodar agora, uma das três:
+
+| Como | Passos |
+| --- | --- |
+| Na própria janela do aviso | **Mais informações** → **Executar assim mesmo**. |
+| Antes de abrir | Clique com o botão direito no `.exe` → **Propriedades** → marque **Desbloquear** → **OK**. |
+| Pelo PowerShell | `Unblock-File .\PedalTrainer.exe` |
+
+Se preferir confirmar que o download não foi corrompido, compare o SHA-256 com o da release:
+
+```powershell
+certutil -hashfile PedalTrainer.exe SHA256
+```
+
+A correção definitiva é assinar o executável — veja [Assinatura digital](#assinatura-digital).
 
 ---
 
@@ -335,6 +362,58 @@ dotnet publish src/PedalTrainer.App/PedalTrainer.App.csproj `
   -o dist/publish
 ```
 
+### Assinatura digital
+
+O workflow de release assina o executável quando existe um certificado de code signing
+configurado. O passo roda
+[`tools/signing/Sign-Binary.ps1`](tools/signing/Sign-Binary.ps1), que assina com SHA-256,
+aplica carimbo de tempo RFC 3161 (para a assinatura continuar válida depois que o
+certificado expirar) e confere a cadeia com `signtool verify /pa`.
+
+Configure dois secrets no repositório (*Settings → Secrets and variables → Actions*):
+
+| Secret | Conteúdo |
+| --- | --- |
+| `PEDALTRAINER_PFX_BASE64` | O `.pfx` do certificado em base64, em uma única linha. |
+| `PEDALTRAINER_PFX_PASSWORD` | A senha do `.pfx`. |
+
+```powershell
+# gera o valor do secret a partir do .pfx
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\caminho\pedaltrainer.pfx'))
+```
+
+Sem esses secrets o build continua funcionando: ele apenas avisa no log que o binário saiu
+sem assinatura.
+
+Para assinar localmente depois de um `dotnet publish`:
+
+```powershell
+$env:PEDALTRAINER_PFX_BASE64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\caminho\pedaltrainer.pfx'))
+$env:PEDALTRAINER_PFX_PASSWORD = 'senha'
+powershell -ExecutionPolicy Bypass -File tools/signing/Sign-Binary.ps1 -Path dist/publish/PedalTrainer.exe
+```
+
+Qual certificado resolve o aviso:
+
+- **OV (Organization Validation)** — mais barato (ordem de US$ 100–300 por ano), valida o CNPJ
+  ou a identidade do titular. A assinatura é aceita, mas o SmartScreen ainda pode avisar até o
+  binário acumular downloads; a reputação cresce com o tempo.
+- **EV (Extended Validation)** — mais caro e com validação mais rígida, exige token físico ou
+  HSM em nuvem. Dá reputação de confiança imediata no SmartScreen.
+- **Azure Trusted Signing** — assinatura gerenciada pela Microsoft, bem mais barata que um
+  certificado tradicional, porém exige uma organização com histórico verificável.
+- **Enquanto não houver certificado** — é possível enviar cada binário em
+  [Microsoft Security Intelligence File Submission](https://www.microsoft.com/en-us/wdsi/filesubmission)
+  como *software developer*; o aviso é removido para aquele arquivo específico, e é preciso
+  repetir a cada versão.
+
+Um certificado autoassinado **não** resolve para quem baixa o arquivo: ele só é aceito na
+máquina onde o certificado está instalado como raiz confiável, então serve para teste local,
+não para distribuição.
+
+`dist/PedalTrainer.exe` (o binário versionado no repositório) precisa ser assinado e regravado
+sempre que for republicado, usando o mesmo script.
+
 Atalho para inspecionar controladores e eixos sem abrir a interface:
 
 ```powershell
@@ -371,7 +450,9 @@ powershell -ExecutionPolicy Bypass -File tools/branding/New-AppIcon.ps1
 - **Automobilista 2 e Le Mans Ultimate dependem do jogo estar configurado** para publicar
   memória compartilhada (veja *Simuladores suportados*); sem isso eles aparecem como
   "simulador não encontrado".
-- **Binário sem assinatura digital**, então o SmartScreen avisa na primeira execução.
+- **Binário sem assinatura digital** enquanto não houver certificado de code signing
+  configurado, então o SmartScreen avisa na primeira execução. O pipeline já sabe assinar
+  (veja [Assinatura digital](#assinatura-digital)); falta apenas o certificado.
 - Voltas gravadas precisam cobrir pelo menos 90% da pista; voltas parciais são descartadas de
   propósito, para não gerar referência incompleta.
 
