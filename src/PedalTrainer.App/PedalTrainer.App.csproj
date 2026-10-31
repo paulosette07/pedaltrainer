@@ -13,10 +13,10 @@
     <Prefer32Bit>false</Prefer32Bit>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\pedaltrainer.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
-    <InformationalVersion>1.1.0</InformationalVersion>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
+    <InformationalVersion>1.2.0</InformationalVersion>
     <Product>Pedal Trainer</Product>
     <Company>Pedal Trainer</Company>
     <Description>Treino de frenagem telemetrada para simuladores</Description>
@@ -27,7 +27,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Mesmo icone do executavel, usado na janela e na barra de tarefas. -->
+    <!--
+      Mesmo icone do executavel. A janela le o icone do proprio .exe em tempo de execucao
+      (Services/AppIconProvider.cs) porque o recurso WPF nao resolve no publish single-file;
+      este item e o caminho reserva quando o processo nao tem icone proprio.
+    -->
     <Resource Include="Assets\pedaltrainer.ico" />
   </ItemGroup>
 

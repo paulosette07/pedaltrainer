@@ -422,9 +422,17 @@ dotnet run --project tools/PedalTrainer.Probe/PedalTrainer.Probe.csproj
 
 ### Ícone do aplicativo
 
-O ícone (tile escuro com o símbolo do pedal em verde, nas cores do tema) é usado em três
-lugares a partir do mesmo arquivo: no executável (`ApplicationIcon`, o que o Explorer e a
-barra de tarefas mostram), na janela (`Window.Icon`) e no recurso embutido no assembly.
+O ícone (tile escuro com o símbolo do pedal em verde, nas cores do tema) sai de um único
+arquivo e aparece em dois lugares:
+
+- **No executável** (`ApplicationIcon`), que é o que o Explorer mostra e o que a barra de
+  tarefas usa quando o app é fixado.
+- **Na janela**, barra de título, barra de tarefas e Alt+Tab. Aqui o ícone **não** vem do
+  `Icon` do XAML: no `dotnet publish -p:PublishSingleFile=true` a resolução do pack URI
+  devolve vazio e a janela ficava sem ícone nenhum. [`Services/AppIconProvider.cs`](src/PedalTrainer.App/Services/AppIconProvider.cs)
+  lê o ícone do próprio `.exe` em tempo de execução (`ExtractIconEx`), entrega os tamanhos
+  nativos de 16 e 32 px por `WM_SETICON` e só cai para o recurso WPF quando o processo não
+  tem ícone próprio — caso de rodar via `dotnet PedalTrainer.dll`.
 
 - Fonte vetorial: [`assets/branding/pedaltrainer-icon.svg`](assets/branding/pedaltrainer-icon.svg)
 - Binário usado no build: [`src/PedalTrainer.App/Assets/pedaltrainer.ico`](src/PedalTrainer.App/Assets/pedaltrainer.ico)
@@ -459,6 +467,14 @@ powershell -ExecutionPolicy Bypass -File tools/branding/New-AppIcon.ps1
 ---
 
 ## Histórico
+
+### 1.2.0
+
+- **Ícone volta a aparecer na janela**: barra de título, barra de tarefas e Alt+Tab usam o
+  logo do programa. O `Icon` declarado no XAML não sobrevivia ao
+  `dotnet publish -p:PublishSingleFile=true`, então a janela caía no ícone genérico do
+  Windows; agora o ícone é lido do próprio executável em tempo de execução.
+- Versão visível no rodapé (`v1.2.0`).
 
 ### 1.1.0
 

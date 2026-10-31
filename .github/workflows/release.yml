@@ -71,15 +71,47 @@ jobs:
 
           $assinatura | Out-String | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
 
+      # Permite conferir que o download chegou inteiro, mesmo sem assinatura digital.
+      - name: Gerar checksum SHA-256
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -LiteralPath 'dist/publish/PedalTrainer.exe' -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  PedalTrainer.exe" | Set-Content -LiteralPath 'dist/publish/PedalTrainer.exe.sha256' -Encoding ascii -NoNewline
+          Write-Host "SHA-256: $hash"
+          "``$hash``" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY
+
       - name: Guardar artefato
         uses: actions/upload-artifact@v4
         with:
           name: PedalTrainer-win-x64
-          path: dist/publish/PedalTrainer.exe
+          path: |
+            dist/publish/PedalTrainer.exe
+            dist/publish/PedalTrainer.exe.sha256
 
       - name: Anexar na release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/publish/PedalTrainer.exe
+          files: |
+            dist/publish/PedalTrainer.exe
+            dist/publish/PedalTrainer.exe.sha256
           generate_release_notes: true
+          append_body: true
+          body: |
+            ## Aviso do Windows (SmartScreen)
+
+            Este executável **não tem assinatura digital**, então na primeira execução o Windows
+            mostra *"O Windows protegeu o computador"* com o publicador como *Desconhecido*. Não é
+            detecção de vírus: o SmartScreen bloqueia qualquer executável baixado da internet que
+            ainda não tenha histórico de downloads.
+
+            Para rodar: **Mais informações** → **Executar assim mesmo**. Também é possível
+            desbloquear antes de abrir (botão direito no `.exe` → **Propriedades** →
+            **Desbloquear**) ou com `Unblock-File .\PedalTrainer.exe`.
+
+            Confira o download com o arquivo `PedalTrainer.exe.sha256` anexado aqui:
+            `certutil -hashfile PedalTrainer.exe SHA256`.
+
+            O aviso só desaparece com um certificado de code signing — o workflow já está pronto
+            para assinar quando os secrets `PEDALTRAINER_PFX_BASE64` e
+            `PEDALTRAINER_PFX_PASSWORD` existirem.
