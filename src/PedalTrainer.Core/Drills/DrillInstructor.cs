@@ -77,6 +77,15 @@ public static class DrillInstructor
         return rate <= 0 ? "sem subida" : Pace(rate);
     }
 
+    /// <summary>Adjetivo da soltura da etapa inteira: "gradualmente", "rápido"...</summary>
+    public static string ReleasePace(DrillStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+
+        double rate = step.ReleaseRatePercentPerSecond;
+        return rate <= 0 ? "sem soltura" : Pace(rate);
+    }
+
     /// <summary>Adjetivo de velocidade para uma taxa em pontos percentuais por segundo.</summary>
     public static string Pace(double ratePercentPerSecond)
     {

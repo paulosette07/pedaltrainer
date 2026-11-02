@@ -129,7 +129,7 @@ public sealed class DrillProgramStore
         {
             string path = Path.Combine(Directory, fileName);
 
-            if (!overwrite && File.Exists(path))
+            if (!overwrite && File.Exists(path) && !IsUntouchedLegacyDefault(path, fileName))
             {
                 continue;
             }
@@ -142,6 +142,40 @@ public sealed class DrillProgramStore
         }
 
         return ok;
+    }
+
+    /// <summary>
+    /// Verdadeiro quando o arquivo é um programa padrão de uma versão anterior do aplicativo
+    /// que o piloto nunca editou — só nesse caso ele é regravado com a pegada nova. Arquivo
+    /// renomeado, com percentuais ajustados ou com descrição própria é preservado.
+    /// </summary>
+    private static bool IsUntouchedLegacyDefault(string path, string fileName)
+    {
+        if (!DrillProgramFile.TryLoad(path, out DrillProgram? existing, out _) || existing is null)
+        {
+            // Arquivo ilegível: preserva o que está no disco em vez de sobrescrever.
+            return false;
+        }
+
+        if (existing.Version >= DrillProgram.CurrentVersion)
+        {
+            return false;
+        }
+
+        foreach ((string legacyFileName, DrillProgram legacy) in LegacyDrillPrograms.All())
+        {
+            if (!string.Equals(fileName, legacyFileName, PathComparison))
+            {
+                continue;
+            }
+
+            if (DrillProgramSignature.AreEqual(existing, legacy))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Caminho sugerido para um programa dentro da pasta de treinos.</summary>

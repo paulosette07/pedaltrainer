@@ -29,7 +29,31 @@ public sealed class DrillProgramTests
     }
 
     [Fact]
-    public void BrakeSteps_PressFirmlyAndReleaseSlowly()
+    public void BuiltInPrograms_PressFastAndReleaseGradually()
+    {
+        foreach ((string fileName, DrillProgram program) in DrillProgramCatalog.All())
+        {
+            Assert.True(program.TryValidate(out string error), $"{fileName}: {error}");
+
+            foreach (DrillStep step in program.Steps)
+            {
+                Assert.True(
+                    step.PressRatePercentPerSecond >= DrillInstructor.FastRate,
+                    $"{fileName} · {step.Label}: pisada lenta ({step.PressRatePercentPerSecond:0} %/s)");
+
+                Assert.True(
+                    step.ReleaseRatePercentPerSecond < DrillInstructor.ModerateRate,
+                    $"{fileName} · {step.Label}: soltura rápida ({step.ReleaseRatePercentPerSecond:0} %/s)");
+
+                Assert.True(
+                    step.ReleaseRatePercentPerSecond < step.PressRatePercentPerSecond,
+                    $"{fileName} · {step.Label}: soltura mais rápida que a pisada");
+            }
+        }
+    }
+
+    [Fact]
+    public void BrakeSteps_PressFastAndReleaseSlowly()
     {
         DrillProgram program = DrillProgramCatalog.CreateBrakeProgressive();
 
@@ -39,15 +63,17 @@ public sealed class DrillProgramTests
             Assert.Equal(DrillSegmentKind.Hold, step.Segments[1].Kind);
             Assert.Equal(DrillSegmentKind.Release, step.Segments[2].Kind);
 
-            double pressRate = DrillInstructor.Rate(0, step.Segments[0].ToPercent ?? step.TargetPercent, step.Segments[0].Seconds);
-            double releaseRate = DrillInstructor.Rate(step.TargetPercent, 0, step.Segments[2].Seconds);
+            Assert.Equal("rápido", DrillInstructor.PressPace(step));
+            Assert.Equal("gradualmente", DrillInstructor.ReleasePace(step));
 
-            Assert.True(releaseRate < pressRate, $"soltura mais rápida que a pisada na etapa {step.Label}");
+            // Pisada sempre abaixo de meio segundo, soltura sempre bem mais longa.
+            Assert.True(step.Segments[0].Seconds <= 0.5, $"pisada de {step.Segments[0].Seconds} s na etapa {step.Label}");
+            Assert.True(step.Segments[2].Seconds > step.Segments[0].Seconds * 3);
         }
     }
 
     [Fact]
-    public void ThrottleProgram_StartsWithFastBlipThenGradualThenProgressiveTo100()
+    public void ThrottleProgram_PressesFastAndBuildsGraduallyTo100()
     {
         DrillProgram program = DrillProgramCatalog.CreateThrottleProgressive();
 
@@ -56,7 +82,7 @@ public sealed class DrillProgramTests
         Assert.All(program.Steps, step => Assert.Equal(DrillPedal.Throttle, step.Pedal));
 
         DrillStep fast = program.Steps[0];
-        DrillStep gradual = program.Steps[1];
+        DrillStep fifty = program.Steps[1];
         DrillStep progressive = program.Steps[2];
         DrillStep eighty = program.Steps[3];
 
@@ -64,13 +90,16 @@ public sealed class DrillProgramTests
         Assert.True(fast.PressRatePercentPerSecond >= DrillInstructor.FastRate);
         Assert.Equal("rápido", DrillInstructor.PressPace(fast));
 
-        Assert.Equal(20, gradual.TargetPercent, 3);
-        Assert.True(gradual.PressRatePercentPerSecond < DrillInstructor.ModerateRate);
-        Assert.Equal("gradualmente", DrillInstructor.PressPace(gradual));
+        Assert.Equal(50, fifty.TargetPercent, 3);
+        Assert.Equal("rápido", DrillInstructor.PressPace(fifty));
 
+        // A subida de 50% até 100% é o único trecho gradual de propósito.
         Assert.Equal(50, progressive.Segments[0].ToPercent!.Value, 3);
         Assert.Equal(100, progressive.Segments[2].ToPercent ?? progressive.TargetPercent, 3);
         Assert.Equal(100, progressive.TargetRange().Max, 3);
+        Assert.Equal(
+            "gradualmente",
+            DrillInstructor.Pace(DrillInstructor.Rate(50, 100, progressive.Segments[2].Seconds)));
 
         Assert.Equal(80, eighty.TargetPercent, 3);
         Assert.Equal(2.0, eighty.Segments[1].Seconds, 3);
@@ -83,10 +112,10 @@ public sealed class DrillProgramTests
         var profile = new DrillProfile(step, step.TargetPercent);
 
         Assert.Equal(0, profile.TargetAt(0), 3);
-        Assert.Equal(10, profile.TargetAt(0.5), 3);
-        Assert.Equal(20, profile.TargetAt(1.0), 3);
-        Assert.Equal(20, profile.TargetAt(1.4), 3);
-        Assert.Equal(10, profile.TargetAt(3.05), 1);
+        Assert.Equal(10, profile.TargetAt(0.15), 3);   // metade da pisada rápida
+        Assert.Equal(20, profile.TargetAt(0.30), 3);   // alvo alcançado em 0,3 s
+        Assert.Equal(20, profile.TargetAt(0.8), 3);    // segura no alvo
+        Assert.Equal(10, profile.TargetAt(2.3), 1);    // metade da soltura
         Assert.Equal(0, profile.TargetAt(profile.DurationSeconds), 3);
         Assert.Equal(20, profile.PeakPercent, 3);
     }
@@ -99,7 +128,7 @@ public sealed class DrillProgramTests
 
         Assert.Equal(65, profile.TargetPercent, 3);
         Assert.Equal(65, profile.PeakPercent, 3);
-        Assert.Equal(65, profile.TargetAt(1.5), 3);
+        Assert.Equal(65, profile.TargetAt(1.0), 3);
     }
 
     [Fact]
@@ -123,10 +152,10 @@ public sealed class DrillProgramTests
         DrillStep step = DrillProgramCatalog.CreateBrakeProgressive().Steps[0];
         var profile = new DrillProfile(step, 20);
 
-        Assert.Equal("Suba firme até 20%", DrillInstructor.DescribeSegment(profile, 0));
-        Assert.Equal("Segure em 20% por 0.8 s", DrillInstructor.DescribeSegment(profile, 1));
+        Assert.Equal("Suba rápido até 20%", DrillInstructor.DescribeSegment(profile, 0));
+        Assert.Equal("Segure em 20% por 1.0 s", DrillInstructor.DescribeSegment(profile, 1));
         Assert.Equal("Solte gradualmente até 0%", DrillInstructor.DescribeSegment(profile, 2));
-        Assert.Equal("FREIO · Suba firme até 20%", DrillInstructor.DescribeWithPedal(profile, 0));
+        Assert.Equal("FREIO · Suba rápido até 20%", DrillInstructor.DescribeWithPedal(profile, 0));
     }
 
     [Fact]

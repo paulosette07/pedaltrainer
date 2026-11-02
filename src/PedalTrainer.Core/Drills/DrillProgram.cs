@@ -10,8 +10,12 @@ namespace PedalTrainer.Core.Drills;
 /// </summary>
 public sealed class DrillProgram
 {
-    /// <summary>Versão do formato gravada nos arquivos de treino.</summary>
-    public const int CurrentVersion = 1;
+    /// <summary>
+    /// Versão do formato gravada nos arquivos de treino. A versão 2 trocou a pegada dos
+    /// programas embutidos (pisada rápida, soltura gradual): arquivos da versão 1 que ainda
+    /// estão idênticos ao padrão antigo são regravados na abertura da tela de programas.
+    /// </summary>
+    public const int CurrentVersion = 2;
 
     /// <summary>Nome do programa, exibido na lista.</summary>
     public string Name { get; set; } = "Novo programa";

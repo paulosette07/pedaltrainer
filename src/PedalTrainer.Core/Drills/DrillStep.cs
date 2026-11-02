@@ -84,6 +84,32 @@ public sealed class DrillStep
         }
     }
 
+    /// <summary>
+    /// Taxa de descida do trecho de soltura, em pontos percentuais por segundo. Serve para
+    /// nomear a soltura na lista de etapas ("solta gradualmente").
+    /// </summary>
+    [JsonIgnore]
+    public double ReleaseRatePercentPerSecond
+    {
+        get
+        {
+            double peak = TargetRange().Max;
+
+            foreach (DrillSegment segment in Segments)
+            {
+                if (segment.Kind != DrillSegmentKind.Release || segment.Seconds <= 0)
+                {
+                    continue;
+                }
+
+                double to = segment.ToPercent ?? 0;
+                return Math.Max(0, peak - to) / segment.Seconds;
+            }
+
+            return 0;
+        }
+    }
+
     /// <summary>Menor e maior valor tocados pela curva-alvo.</summary>
     public (double Min, double Max) TargetRange()
     {

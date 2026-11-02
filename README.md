@@ -84,7 +84,7 @@ A correção definitiva é assinar o executável — veja [Assinatura digital](#
 | Tela | Para quê |
 | --- | --- |
 | **Treino** | Barra de freio/acelerador ao vivo, gráfico de traço contra a curva de referência, medidor de precisão, nota ao vivo, zonas da volta e estatísticas da sessão. |
-| **Programas** | Biblioteca de treinos do tipo "pise até 20%, segure, solte devagar", com alvo sorteado por repetição. Programas são arquivos JSON editáveis. |
+| **Programas** | Biblioteca de treinos do tipo "pise rápido até 20%, segure e solte devagar", com alvo sorteado por repetição. A curva do exercício aparece **antes** de você começar. Programas são arquivos JSON editáveis. |
 | **Calibração** | Descobre qual eixo do controlador é o freio e qual é o acelerador, aprende a faixa bruta do pedal e ajusta zona morta, curva e suavização. |
 | **Configurações** | Simulador de onde vem a telemetria, rigor do treino (gatilho de frenagem, banda de tolerância), janela do gráfico, alinhamento por distância, escolha do controlador e do modelo de pedal. |
 
@@ -196,24 +196,24 @@ execução. São arquivos de texto comuns: copie, edite os percentuais e recarre
 ```json
 {
   "name": "Freio progressivo",
-  "description": "Sobe até 20%, segura e solta devagar.",
-  "version": 1,
+  "description": "Pise rápido até o alvo, segure e solte devagar.",
+  "version": 2,
   "restPercent": 4,
   "steps": [
     {
-      "label": "Freio até 20% e soltar devagar",
+      "label": "Freio: pisar rápido em 20% e soltar devagar",
       "pedal": "brake",
       "targetPercent": 20,
       "tolerancePercent": 4,
       "repetitions": 10,
       "segments": [
-        { "kind": "ramp", "seconds": 1.0 },
-        { "kind": "hold", "seconds": 0.8 },
-        { "kind": "release", "seconds": 2.5, "toPercent": 0 }
+        { "kind": "ramp", "seconds": 0.3 },
+        { "kind": "hold", "seconds": 1.0 },
+        { "kind": "release", "seconds": 2.0, "toPercent": 0 }
       ]
     },
     {
-      "label": "Alvo sorteado (20 a 85%)",
+      "label": "Freio em alvo sorteado (20 a 85%)",
       "pedal": "brake",
       "targetPercent": 50,
       "tolerancePercent": 7,
@@ -221,9 +221,9 @@ execução. São arquivos de texto comuns: copie, edite os percentuais e recarre
       "randomTargetMinPercent": 20,
       "randomTargetMaxPercent": 85,
       "segments": [
-        { "kind": "ramp", "seconds": 1.5 },
+        { "kind": "ramp", "seconds": 0.4 },
         { "kind": "hold", "seconds": 1.0 },
-        { "kind": "release", "seconds": 3.0 }
+        { "kind": "release", "seconds": 5.0, "toPercent": 0 }
       ]
     }
   ]
@@ -245,6 +245,32 @@ execução. São arquivos de texto comuns: copie, edite os percentuais e recarre
 Regras de validação: cada etapa precisa de pelo menos um segmento, uma repetição e duração
 total de até 120 s por repetição; alvos ficam entre 5% e 100%.
 
+Nos programas embutidos o `ramp` é curto de propósito — 0,3 a 0,5 s do repouso até o alvo,
+que é a pisada que um carro de verdade pede — e quase todo o tempo da repetição está na
+`release`, onde o pé precisa modular. A única subida longa é a de 50% até 100% do programa
+de acelerador, que treina a aplicação progressiva na saída de curva.
+
+Arquivos da versão 1 que ainda estão idênticos ao padrão antigo (pisada lenta) são regravados
+com a pegada nova na abertura da tela. Arquivo renomeado, com percentuais ajustados ou com
+descrição própria é preservado; o botão *Regravar programas padrão* força a regravação de
+todos.
+
+### Ver a curva antes de começar
+
+O gráfico do exercício nunca fica vazio. Com um programa escolhido e o treino parado ele já
+desenha a **prévia da primeira repetição** (tracejada, com marcadores de largada e de pico e
+a etiqueta `pico 20% · 3,3 s`). Ao iniciar, o estágio *PRONTO* mostra a **próxima curva**
+exatamente como ela vai ser cobrada — mesma altura de alvo, mesma banda de tolerância — e a
+tira `PLANO DA REPETIÇÃO` lista os trechos na ordem:
+
+```
+SUBIR  até 20%  0,3 s   →   SEGURAR  em 20%  1,0 s   →   SOLTAR  até 0%  2,0 s
+```
+
+Durante a repetição o trecho em execução fica destacado, e quando a repetição é a última da
+etapa o app avisa qual curva vem depois. Etapas com alvo sorteado aparecem com o meio da faixa
+na prévia: a forma da curva é sempre a mesma, só a altura muda.
+
 ---
 
 ## Arquitetura
@@ -254,7 +280,7 @@ O app é dividido em uma biblioteca de domínio testável e uma casca WPF fina.
 ```
 PedalTrainer.Core   domínio puro: entrada, referência, treino, drills, telemetria, persistência
 PedalTrainer.App    WPF: janela, views, view models, controles de desenho e tema
-PedalTrainer.Tests  xUnit, 172 testes cobrindo o núcleo sem precisar de hardware
+PedalTrainer.Tests  xUnit, 184 testes cobrindo o núcleo sem precisar de hardware
 PedalTrainer.Probe  ferramenta de console para inspecionar controladores e eixos
 ```
 
@@ -345,7 +371,7 @@ dotnet build PedalTrainer.slnx -c Release
 # alternativa com o SDK 8
 dotnet build src/PedalTrainer.App/PedalTrainer.App.csproj -c Release
 
-# rodar os testes (172 testes)
+# rodar os testes (184 testes)
 dotnet test tests/PedalTrainer.Tests/PedalTrainer.Tests.csproj -c Release
 
 # rodar a partir do código
@@ -467,6 +493,33 @@ powershell -ExecutionPolicy Bypass -File tools/branding/New-AppIcon.ps1
 ---
 
 ## Histórico
+
+### 1.4.0
+
+- **A curva aparece antes de começar**: com o treino parado o gráfico já mostra a prévia da
+  primeira repetição do programa escolhido, e no estágio *PRONTO* mostra a próxima curva —
+  tracejada, com marcadores de largada e de pico e a etiqueta "pico 20% · 3,3 s". Antes o
+  gráfico ficava vazio até o primeiro toque no pedal.
+- **Tira do plano da repetição**: o cartão do exercício lista os trechos na ordem
+  (`SUBIR até 20% · 0,3 s`, `SEGURAR em 20% · 1,0 s`, `SOLTAR até 0% · 2,0 s`), destacando o
+  trecho em execução. Dá para saber o formato do exercício só de olhar, sem decorar o arquivo.
+- **Aviso de troca de curva**: na última repetição de uma etapa, o app avisa qual é a etapa
+  seguinte, que muda o desenho do gráfico.
+- A prévia de etapas com alvo sorteado usa o meio da faixa (20 a 85% → desenho em 53%).
+- 184 testes (eram 176).
+
+### 1.3.0
+
+- **Pisada rápida, soltura gradual**: nos programas embutidos o pedal vai do repouso ao alvo
+  em 0,3–0,5 s e todo o tempo do exercício está na soltura, que é a parte que o pé precisa
+  modular. Os programas de freio e de acelerador foram refeitos nessa pegada.
+- **Arquivos de treino antigos se atualizam sozinhos**: se o `*.drill.json` da pasta de
+  treinos ainda estiver idêntico ao padrão da versão 1, o app o regrava com a pegada nova
+  (o formato passou para a versão 2). Arquivo renomeado, com percentuais próprios ou
+  descrição própria é preservado.
+- **Lista de etapas mostra a pegada**: cada etapa aparece como "pisa rápido, solta
+  gradualmente", em vez de mostrar só a velocidade da pisada.
+- 176 testes (eram 172).
 
 ### 1.2.0
 

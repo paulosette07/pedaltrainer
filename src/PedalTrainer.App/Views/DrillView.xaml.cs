@@ -75,6 +75,7 @@ public partial class DrillView : UserControl
         ProgramProgressBar.Value = viewModel.ProgramProgress;
 
         Plot.SetWaiting(WaitingWindowSeconds);
+        Plot.SetPreview(viewModel.IsCurvePreview);
         Plot.SetTarget(viewModel.PlotCurve, viewModel.TolerancePercent);
         Plot.SetLive(viewModel.PlotTrace, viewModel.CursorSeconds);
     }

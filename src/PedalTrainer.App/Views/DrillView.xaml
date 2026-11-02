@@ -195,6 +195,73 @@
                                    Foreground="{StaticResource TextSecondaryBrush}"
                                    Margin="0,6,0,0" />
 
+                        <StackPanel Margin="0,10,0,0">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CurveSteps.Count}" Value="0">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Right"
+                                           Text="{Binding NextStepText}"
+                                           Style="{StaticResource CaptionText}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="PLANO DA REPETIÇÃO" Style="{StaticResource SectionText}" />
+                            </DockPanel>
+
+                            <ItemsControl ItemsSource="{Binding CurveSteps}" Margin="0,6,0,0">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="Chip"
+                                                Background="{StaticResource SurfaceRaisedBrush}"
+                                                BorderBrush="{StaticResource BorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                Padding="8,4"
+                                                Margin="0,0,6,6"
+                                                ToolTip="{Binding Instruction}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock x:Name="Action"
+                                                           Text="{Binding Action}"
+                                                           FontSize="10"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource ReferenceBrush}"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding TargetText}"
+                                                           FontFamily="{StaticResource MonoFont}"
+                                                           FontSize="12"
+                                                           FontWeight="Bold"
+                                                           Margin="7,0,0,0"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding TimeText}"
+                                                           Style="{StaticResource CaptionText}"
+                                                           Margin="7,0,0,0"
+                                                           VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                <Setter TargetName="Chip" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                <Setter TargetName="Chip" Property="Background" Value="#FF17251D" />
+                                                <Setter TargetName="Action" Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
                         <DockPanel Margin="0,12,0,0">
                             <TextBlock DockPanel.Dock="Right"
                                        Text="{Binding StepCounterText}"
@@ -238,10 +305,22 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <DockPanel Margin="2,0,2,8">
-                        <TextBlock Text="CURVA-ALVO × SUA ENTRADA" Style="{StaticResource SectionText}" VerticalAlignment="Center" />
+                    <Grid Margin="2,0,2,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding CurvePlanTitle}" Style="{StaticResource SectionText}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding CurveSummary}"
+                                       Style="{StaticResource CaptionText}"
+                                       Margin="10,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                             <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource ReferenceBrush}" VerticalAlignment="Center" />
                             <TextBlock Text="alvo" Style="{StaticResource CaptionText}" Margin="5,0,12,0" />
 
@@ -251,7 +330,7 @@
                             <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource DangerBrush}" VerticalAlignment="Center" />
                             <TextBlock Text="fora" Style="{StaticResource CaptionText}" Margin="5,0,0,0" />
                         </StackPanel>
-                    </DockPanel>
+                    </Grid>
 
                     <controls:DrillPlot Grid.Row="1" x:Name="Plot" />
                 </Grid>

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace PedalTrainer.Core.Drills;
@@ -71,8 +72,26 @@ public sealed record DrillUpdate
     /// <summary>Resultado da última repetição concluída.</summary>
     public DrillRepetitionResult? LastResult { get; init; }
 
-    /// <summary>Curva-alvo da repetição atual, para o gráfico.</summary>
+    /// <summary>
+    /// Curva-alvo da repetição atual. Publicada já no estágio de espera, para o piloto ver
+    /// o desenho antes de começar o movimento.
+    /// </summary>
     public IReadOnlyList<DrillCurvePoint>? TargetCurve { get; init; }
+
+    /// <summary>Trechos da repetição em texto ("suba rápido até 90%", "segure 0,4 s").</summary>
+    public IReadOnlyList<DrillCurveStep> CurvePlan { get; init; } = Array.Empty<DrillCurveStep>();
+
+    /// <summary>Trecho vigente dentro de <see cref="CurvePlan"/>; negativo antes de começar.</summary>
+    public int CurvePlanIndex { get; init; } = -1;
+
+    /// <summary>Resumo da curva desta repetição ("pico 90% · 3,3 s").</summary>
+    public string CurveSummary { get; init; } = string.Empty;
+
+    /// <summary>Nome da etapa seguinte, quando esta é a última repetição da etapa atual.</summary>
+    public string NextStepLabel { get; init; } = string.Empty;
+
+    /// <summary>Verdadeiro quando a curva desta repetição já pode ser desenhada.</summary>
+    public bool HasCurve => TargetCurve is { Count: > 1 };
 
     public string StatusMessage { get; init; } = "Simule ou conecte os pedais para começar.";
 

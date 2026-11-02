@@ -10,6 +10,71 @@ namespace PedalTrainer.Tests;
 /// </summary>
 public sealed class DrillProgramStoreTests : IDisposable
 {
+    /// <summary>
+    /// Programa de freio exatamente como a versão 1 do aplicativo gravava (pisada lenta,
+    /// soltura rápida), para conferir a migração dos arquivos já existentes.
+    /// </summary>
+    private const string LegacyBrakeJson = """
+        {
+          "name": "Freio — 20 / 50 / 80 e alvos sorteados",
+          "description": "Pise no freio até o alvo, segure e solte devagar. Começa leve (20%), sobe para 50% e 80% e termina com alvos sorteados para treinar a memória muscular.",
+          "version": 1,
+          "restPercent": 4,
+          "steps": [
+            {
+              "label": "Freio até 20% e soltar devagar",
+              "pedal": "brake",
+              "targetPercent": 20,
+              "tolerancePercent": 4,
+              "repetitions": 10,
+              "segments": [
+                { "kind": "ramp", "seconds": 1 },
+                { "kind": "hold", "seconds": 0.8 },
+                { "kind": "release", "seconds": 2.5, "toPercent": 0 }
+              ]
+            },
+            {
+              "label": "Freio até 50% e soltar devagar",
+              "pedal": "brake",
+              "targetPercent": 50,
+              "tolerancePercent": 5,
+              "repetitions": 10,
+              "segments": [
+                { "kind": "ramp", "seconds": 1.6 },
+                { "kind": "hold", "seconds": 1 },
+                { "kind": "release", "seconds": 3, "toPercent": 0 }
+              ]
+            },
+            {
+              "label": "Freio até 80% e soltar devagar",
+              "pedal": "brake",
+              "targetPercent": 80,
+              "tolerancePercent": 6,
+              "repetitions": 10,
+              "segments": [
+                { "kind": "ramp", "seconds": 2 },
+                { "kind": "hold", "seconds": 1.2 },
+                { "kind": "release", "seconds": 3.5, "toPercent": 0 }
+              ]
+            },
+            {
+              "label": "Freio em alvo sorteado (20 a 85%)",
+              "pedal": "brake",
+              "targetPercent": 50,
+              "tolerancePercent": 7,
+              "repetitions": 12,
+              "randomTargetMinPercent": 20,
+              "randomTargetMaxPercent": 85,
+              "segments": [
+                { "kind": "ramp", "seconds": 1.5 },
+                { "kind": "hold", "seconds": 1 },
+                { "kind": "release", "seconds": 3, "toPercent": 0 }
+              ]
+            }
+          ]
+        }
+        """;
+
     private readonly string _folder = Path.Combine(
         Path.GetTempPath(),
         "pedaltrainer-drills-" + Guid.NewGuid().ToString("N"));
@@ -65,6 +130,53 @@ public sealed class DrillProgramStoreTests : IDisposable
         Assert.False(broken.IsValid);
         Assert.False(string.IsNullOrWhiteSpace(broken.Error));
         Assert.Contains("quebrado", broken.DisplayName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void LoadLibrary_ReplacesTheLegacyDefaultWithTheFastPressProgram()
+    {
+        string path = WriteLegacyBrake();
+        var store = new DrillProgramStore(_folder);
+
+        IReadOnlyList<DrillProgramEntry> entries = store.LoadLibrary();
+
+        DrillProgramEntry brake = entries[0];
+        Assert.True(brake.IsValid, brake.Error);
+        Assert.Equal(DrillProgram.CurrentVersion, brake.Program!.Version);
+        Assert.Equal("rápido", DrillInstructor.PressPace(brake.Program.Steps[0]));
+        Assert.Equal("gradualmente", DrillInstructor.ReleasePace(brake.Program.Steps[0]));
+        Assert.True(brake.Program.Steps[0].Segments[0].Seconds <= 0.5);
+
+        // O arquivo em disco também foi regravado, não só a lista em memória.
+        Assert.True(DrillProgramFile.TryLoad(path, out DrillProgram? reloaded, out string error), error);
+        Assert.True(reloaded!.Steps[0].Segments[0].Seconds <= 0.5);
+    }
+
+    [Fact]
+    public void LoadLibrary_KeepsLegacyFileThatTheDriverEdited()
+    {
+        string path = WriteLegacyBrake();
+
+        Assert.True(DrillProgramFile.TryLoad(path, out DrillProgram? edited, out string error), error);
+        edited!.Steps[0].Repetitions = 3;
+        File.WriteAllText(path, DrillProgramFile.ToJson(edited));
+
+        var store = new DrillProgramStore(_folder);
+        IReadOnlyList<DrillProgramEntry> entries = store.LoadLibrary();
+
+        DrillProgramEntry brake = entries[0];
+        Assert.True(brake.IsValid, brake.Error);
+        Assert.Equal(3, brake.Program!.Steps[0].Repetitions);
+        Assert.Equal(1.0, brake.Program.Steps[0].Segments[0].Seconds, 3);
+    }
+
+    /// <summary>Grava o programa de freio da versão 1 na pasta do teste.</summary>
+    private string WriteLegacyBrake()
+    {
+        Directory.CreateDirectory(_folder);
+        string path = Path.Combine(_folder, DrillProgramCatalog.BrakeFileName);
+        File.WriteAllText(path, LegacyBrakeJson);
+        return path;
     }
 
     [Fact]

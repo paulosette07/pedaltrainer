@@ -9,7 +9,9 @@ namespace PedalTrainer.App.Controls;
 
 /// <summary>
 /// Gráfico do exercício: curva-alvo em azul, banda de tolerância e a entrada real do
-/// piloto em verde (dentro) ou vermelho (fora). Desenho direto para manter 60 fps.
+/// piloto em verde (dentro) ou vermelho (fora). Antes de a repetição começar a curva é
+/// desenhada como prévia tracejada, para o piloto saber o que vem pela frente.
+/// Desenho direto para manter 60 fps.
 /// </summary>
 public sealed class DrillPlot : FrameworkElement
 {
@@ -22,11 +24,15 @@ public sealed class DrillPlot : FrameworkElement
     private static readonly Brush GridBrush = CreateBrush(Color.FromArgb(0x40, 0x2F, 0x36, 0x40));
     private static readonly Brush AxisTextBrush = CreateBrush(Color.FromRgb(0x7C, 0x86, 0x95));
     private static readonly Brush TargetBrush = CreateBrush(Color.FromRgb(0x3F, 0xD0, 0xFF));
+    private static readonly Brush PreviewBrush = CreateBrush(Color.FromRgb(0x7A, 0xDF, 0xFF));
     private static readonly Brush ToleranceBrush = CreateBrush(Color.FromArgb(0x1F, 0x3F, 0xD0, 0xFF));
+    private static readonly Brush PreviewBandBrush = CreateBrush(Color.FromArgb(0x14, 0x3F, 0xD0, 0xFF));
     private static readonly Brush GoodBrush = CreateBrush(Color.FromRgb(0x35, 0xE0, 0x8A));
     private static readonly Brush BadBrush = CreateBrush(Color.FromRgb(0xFF, 0x5A, 0x5F));
     private static readonly Brush CursorBrush = CreateBrush(Color.FromArgb(0xAA, 0xE9, 0xED, 0xF2));
     private static readonly Brush MutedBrush = CreateBrush(Color.FromRgb(0x5E, 0x66, 0x74));
+    private static readonly Brush ChipBrush = CreateBrush(Color.FromArgb(0xC8, 0x1B, 0x20, 0x27));
+    private static readonly Brush ChipBorderBrush = CreateBrush(Color.FromArgb(0x66, 0x3F, 0xD0, 0xFF));
 
     private IReadOnlyList<DrillCurvePoint>? _target;
     private ReadOnlyMemory<DrillCurvePoint> _live;
@@ -35,6 +41,7 @@ public sealed class DrillPlot : FrameworkElement
     private double _xMin;
     private double _xMax = 3;
     private double _waitingWindowSeconds = 3;
+    private bool _isPreview;
 
     public DrillPlot()
     {
@@ -43,7 +50,7 @@ public sealed class DrillPlot : FrameworkElement
         MinHeight = 200;
     }
 
-    /// <summary>Texto exibido quando não há repetição em andamento.</summary>
+    /// <summary>Texto exibido quando não há curva nem repetição em andamento.</summary>
     public string EmptyMessage { get; set; } = "Escolha um programa e clique em Iniciar.";
 
     /// <summary>Define a curva-alvo e a banda de tolerância da repetição.</summary>
@@ -58,6 +65,21 @@ public sealed class DrillPlot : FrameworkElement
             _xMax = target[^1].TimeSeconds;
         }
 
+        InvalidateVisual();
+    }
+
+    /// <summary>
+    /// Liga a prévia: a curva aparece tracejada, com pico e duração, para o piloto ver o
+    /// desenho antes de começar o movimento.
+    /// </summary>
+    public void SetPreview(bool isPreview)
+    {
+        if (_isPreview == isPreview)
+        {
+            return;
+        }
+
+        _isPreview = isPreview;
         InvalidateVisual();
     }
 
@@ -96,6 +118,13 @@ public sealed class DrillPlot : FrameworkElement
             _xMax = _target[^1].TimeSeconds;
             DrawGrid(dc, plot);
             DrawAxisLabels(dc, plot);
+
+            if (_isPreview)
+            {
+                DrawPreviewCurve(dc, plot);
+                return;
+            }
+
             DrawToleranceBand(dc, plot);
             DrawTarget(dc, plot);
             DrawLive(dc, plot);
@@ -150,7 +179,9 @@ public sealed class DrillPlot : FrameworkElement
         }
     }
 
-    private void DrawToleranceBand(DrawingContext dc, Rect plot)
+    private void DrawToleranceBand(DrawingContext dc, Rect plot) => DrawToleranceBand(dc, plot, ToleranceBrush);
+
+    private void DrawToleranceBand(DrawingContext dc, Rect plot, Brush brush)
     {
         IReadOnlyList<DrillCurvePoint> target = _target!;
         var geometry = new StreamGeometry();
@@ -172,15 +203,19 @@ public sealed class DrillPlot : FrameworkElement
         }
 
         geometry.Freeze();
-        dc.DrawGeometry(ToleranceBrush, null, geometry);
+        dc.DrawGeometry(brush, null, geometry);
     }
 
     private void DrawTarget(DrawingContext dc, Rect plot)
     {
-        IReadOnlyList<DrillCurvePoint> target = _target!;
         var pen = new Pen(TargetBrush, 2.2) { LineJoin = PenLineJoin.Round };
         pen.Freeze();
+        dc.DrawGeometry(null, pen, BuildCurveGeometry(plot));
+    }
 
+    private StreamGeometry BuildCurveGeometry(Rect plot)
+    {
+        IReadOnlyList<DrillCurvePoint> target = _target!;
         var geometry = new StreamGeometry();
 
         using (StreamGeometryContext ctx = geometry.Open())
@@ -194,7 +229,72 @@ public sealed class DrillPlot : FrameworkElement
         }
 
         geometry.Freeze();
-        dc.DrawGeometry(null, pen, geometry);
+        return geometry;
+    }
+
+    /// <summary>
+    /// Curva ainda não começou: desenho tracejado, marcadores de largada e de pico e uma
+    /// etiqueta com o pico e a duração, para o piloto saber o que vai fazer.
+    /// </summary>
+    private void DrawPreviewCurve(DrawingContext dc, Rect plot)
+    {
+        IReadOnlyList<DrillCurvePoint> target = _target!;
+
+        DrawToleranceBand(dc, plot, PreviewBandBrush);
+
+        var pen = new Pen(PreviewBrush, 2.2)
+        {
+            LineJoin = PenLineJoin.Round,
+            DashStyle = new DashStyle(new double[] { 5, 3.5 }, 0)
+        };
+        pen.Freeze();
+        dc.DrawGeometry(null, pen, BuildCurveGeometry(plot));
+
+        int peakIndex = PeakIndex(target);
+        DrillCurvePoint peak = target[peakIndex];
+
+        DrawMarker(dc, plot, target[0], PreviewBrush, 4.5);
+        DrawMarker(dc, plot, peak, PreviewBrush, 4);
+
+        double peakLabelX = XToPixel(plot, peak.TimeSeconds) + 8;
+        double peakLabelY = YToPixel(plot, peak.Percent) - 18;
+
+        if (peakLabelX < plot.Right - 42)
+        {
+            dc.DrawText(
+                CreateText($"{peak.Percent:0}%", PreviewBrush, 11),
+                new Point(peakLabelX, Math.Max(plot.Top + 2, peakLabelY)));
+        }
+
+        DrawPreviewChip(dc, plot, peak, target[^1].TimeSeconds);
+    }
+
+    private void DrawMarker(DrawingContext dc, Rect plot, DrillCurvePoint point, Brush brush, double radius)
+    {
+        Point center = ToPoint(plot, point.TimeSeconds, point.Percent);
+        dc.DrawEllipse(BackgroundBrush, new Pen(brush, 2), center, radius, radius);
+    }
+
+    private void DrawPreviewChip(DrawingContext dc, Rect plot, DrillCurvePoint peak, double durationSeconds)
+    {
+        FormattedText title = CreateText("PRÓXIMA CURVA", PreviewBrush, 11);
+        FormattedText detail = CreateText(
+            string.Create(CultureInfo.CurrentCulture, $"pico {peak.Percent:0}% · {durationSeconds:0.0} s"),
+            AxisTextBrush,
+            10.5);
+
+        double width = Math.Max(title.Width, detail.Width) + 20;
+        double height = title.Height + detail.Height + 12;
+        double left = plot.Left + 12;
+        double top = plot.Top + 10;
+
+        var chip = new Rect(left, top, width, height);
+        var borderPen = new Pen(ChipBorderBrush, 1);
+        borderPen.Freeze();
+        dc.DrawRoundedRectangle(ChipBrush, borderPen, chip, 7, 7);
+
+        dc.DrawText(title, new Point(left + 10, top + 5));
+        dc.DrawText(detail, new Point(left + 10, top + 6 + title.Height));
     }
 
     private void DrawLive(DrawingContext dc, Rect plot)
@@ -239,6 +339,21 @@ public sealed class DrillPlot : FrameworkElement
 
         double x = XToPixel(plot, _cursorSeconds);
         dc.DrawLine(pen, new Point(x, plot.Top), new Point(x, plot.Bottom));
+    }
+
+    private static int PeakIndex(IReadOnlyList<DrillCurvePoint> target)
+    {
+        var index = 0;
+
+        for (var i = 1; i < target.Count; i++)
+        {
+            if (target[i].Percent > target[index].Percent)
+            {
+                index = i;
+            }
+        }
+
+        return index;
     }
 
     private double SampleTarget(double timeSeconds, ref int index)

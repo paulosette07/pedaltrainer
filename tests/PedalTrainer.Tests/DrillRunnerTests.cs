@@ -210,6 +210,22 @@ public sealed class DrillRunnerTests
         Assert.Contains("Segure", update.Instruction, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void FastPressStep_StillScoresHighWhenFollowedPerfectly()
+    {
+        var runner = new DrillRunner();
+        DrillStep step = DrillProgramCatalog.CreateBrakeProgressive().Steps[0];
+
+        Assert.True(runner.Start(Program(step), 0));
+        SimulateRepetition(runner, step, step.TargetPercent, offsetPercent: 0, startSeconds: 0.1);
+
+        Assert.Equal(DrillStage.RepetitionDone, runner.Stage);
+        DrillRepetitionResult result = runner.LastResult!;
+        Assert.True(result.Score >= 95, $"nota {result.Score:0.0}");
+        Assert.True(result.RmsErrorPercent < 1.5, $"rmse {result.RmsErrorPercent:0.00}");
+        Assert.Equal(20, result.PeakPercent, 2);
+    }
+
     private static DrillStep MakeStep(int repetitions, double target)
     {
         var step = new DrillStep

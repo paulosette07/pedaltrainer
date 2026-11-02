@@ -21,7 +21,6 @@ namespace PedalTrainer.App.ViewModels;
 public sealed class DrillViewModel : ObservableObject
 {
     private const int MaxPlotSamples = 8192;
-    private const double WaitingWindowSeconds = 4.0;
 
     private readonly TrainingEngine _engine;
     private readonly DrillProgramStore _store;
@@ -32,6 +31,17 @@ public sealed class DrillViewModel : ObservableObject
     private DrillRepetitionResult? _lastResult;
     private IReadOnlyList<DrillCurvePoint>? _plotCurve;
     private ReadOnlyMemory<DrillCurvePoint> _plotTrace = ReadOnlyMemory<DrillCurvePoint>.Empty;
+    private IReadOnlyList<DrillCurvePoint>? _previewCurve;
+    private IReadOnlyList<DrillCurveStep> _previewPlan = Array.Empty<DrillCurveStep>();
+    private IReadOnlyList<DrillCurveStep> _shownPlan = Array.Empty<DrillCurveStep>();
+    private string _previewSummary = string.Empty;
+    private string _previewCaption = string.Empty;
+    private string _curveSummary = string.Empty;
+    private string _curvePlanTitle = "CURVA-ALVO";
+    private string _nextStepText = string.Empty;
+    private double _previewTolerance = 5;
+    private int _shownPlanIndex = -1;
+    private bool _isCurvePreview;
     private double _cursorSeconds;
     private string _message = string.Empty;
     private string _programTitle = "Nenhum programa selecionado";
@@ -67,6 +77,7 @@ public sealed class DrillViewModel : ObservableObject
         Programs = new ObservableCollection<DrillProgramEntry>();
         Results = new ObservableCollection<DrillResultItem>();
         StepPreview = new ObservableCollection<string>();
+        CurveSteps = new ObservableCollection<DrillCurveStepItem>();
 
         StartCommand = new RelayCommand(StartDrill, () => !IsRunning && SelectedProgram?.Program is not null);
         StopCommand = new RelayCommand(StopDrill, () => IsRunning);
@@ -88,6 +99,18 @@ public sealed class DrillViewModel : ObservableObject
     public ObservableCollection<DrillResultItem> Results { get; }
 
     public ObservableCollection<string> StepPreview { get; }
+
+    /// <summary>Trechos da curva mostrada (subir, segurar, soltar), na ordem.</summary>
+    public ObservableCollection<DrillCurveStepItem> CurveSteps { get; }
+
+    /// <summary>Título da tira de trechos ("PRÓXIMA CURVA", "CURVA EM ANDAMENTO").</summary>
+    public string CurvePlanTitle { get => _curvePlanTitle; private set => SetProperty(ref _curvePlanTitle, value); }
+
+    /// <summary>Resumo da curva em texto ("pico 90% · 3,3 s").</summary>
+    public string CurveSummary { get => _curveSummary; private set => SetProperty(ref _curveSummary, value); }
+
+    /// <summary>Aviso de que a curva muda na etapa seguinte (vazio quando não muda).</summary>
+    public string NextStepText { get => _nextStepText; private set => SetProperty(ref _nextStepText, value); }
 
     public IRelayCommand StartCommand { get; }
 
@@ -182,8 +205,14 @@ public sealed class DrillViewModel : ObservableObject
 
     public DrillPedal ActivePedal { get => _activePedal; private set => SetProperty(ref _activePedal, value); }
 
-    /// <summary>Curva-alvo desenhada no gráfico (nula antes da repetição começar).</summary>
+    /// <summary>
+    /// Curva desenhada no gráfico: a da repetição em execução, a da próxima repetição
+    /// (estágio de espera) ou a prévia do programa escolhido.
+    /// </summary>
     public IReadOnlyList<DrillCurvePoint>? PlotCurve => _plotCurve;
+
+    /// <summary>Verdadeiro quando o gráfico mostra a prévia, sem entrada do piloto.</summary>
+    public bool IsCurvePreview => _isCurvePreview;
 
     /// <summary>Entrada do piloto, com o tempo relativo ao início da repetição.</summary>
     public ReadOnlyMemory<DrillCurvePoint> PlotTrace => _plotTrace;
@@ -291,7 +320,9 @@ public sealed class DrillViewModel : ObservableObject
             ProgramTitle = "Nenhum programa selecionado";
             ProgramDescription = _selectedProgram?.Error ?? "Escolha um arquivo de treino na lista.";
             ProgramSummary = string.Empty;
+            BuildPreviewCurve(null);
             RefreshCommands();
+            RefreshIdlePreview();
             return;
         }
 
@@ -307,8 +338,11 @@ public sealed class DrillViewModel : ObservableObject
 
             StepPreview.Add(string.Create(
                 CultureInfo.CurrentCulture,
-                $"{index + 1}. {DrillInstructor.StepTitle(step)} · {step.Repetitions}× · {DrillInstructor.PressPace(step)}"));
+                $"{index + 1}. {DrillInstructor.StepTitle(step)} · {step.Repetitions}× · " +
+                $"pisa {DrillInstructor.PressPace(step)}, solta {DrillInstructor.ReleasePace(step)}"));
         }
+
+        BuildPreviewCurve(program);
 
         if (!IsRunning)
         {
@@ -317,6 +351,22 @@ public sealed class DrillViewModel : ObservableObject
         }
 
         RefreshCommands();
+        RefreshIdlePreview();
+    }
+
+    /// <summary>
+    /// Com o treino parado, troca o gráfico pela prévia do programa escolhido na hora: o
+    /// piloto vê o formato da curva enquanto decide o que treinar.
+    /// </summary>
+    private void RefreshIdlePreview()
+    {
+        if (IsRunning)
+        {
+            return;
+        }
+
+        ShowLibraryPreview();
+        PlotDataChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void StartDrill()
@@ -463,11 +513,111 @@ public sealed class DrillViewModel : ObservableObject
 
     private void UpdatePlot(DrillUpdate update)
     {
-        bool running = update.Stage is DrillStage.Running or DrillStage.RepetitionDone;
-        _plotCurve = running ? update.TargetCurve : null;
+        if (update.Stage is DrillStage.Armed or DrillStage.Running or DrillStage.RepetitionDone)
+        {
+            ShowRepetitionCurve(update);
+        }
+        else
+        {
+            ShowLibraryPreview();
+        }
+    }
 
-        double anchor = running ? update.RepetitionStartSeconds : _engine.NowSeconds - WaitingWindowSeconds;
+    /// <summary>
+    /// Curva da repetição do momento: no estágio de espera ela aparece como prévia
+    /// tracejada, para o piloto saber o formato antes de pisar no pedal.
+    /// </summary>
+    private void ShowRepetitionCurve(DrillUpdate update)
+    {
+        bool preview = update.Stage == DrillStage.Armed;
 
+        SetShownCurve(
+            update.TargetCurve,
+            update.CurvePlan,
+            update.CurveSummary,
+            preview
+                ? "PRÓXIMA CURVA"
+                : update.Stage == DrillStage.Running ? "CURVA EM ANDAMENTO" : "CURVA DA REPETIÇÃO",
+            update.TolerancePercent,
+            update.CurvePlanIndex,
+            preview);
+
+        NextStepText = preview && !string.IsNullOrWhiteSpace(update.NextStepLabel)
+            ? $"A etapa seguinte muda a curva: {update.NextStepLabel}."
+            : string.Empty;
+
+        if (preview)
+        {
+            _plotTrace = ReadOnlyMemory<DrillCurvePoint>.Empty;
+            _cursorSeconds = 0;
+            return;
+        }
+
+        CopyLiveTrace(update);
+        _cursorSeconds = update.ElapsedSeconds;
+    }
+
+    /// <summary>
+    /// Sem programa em execução, o gráfico mostra a curva do primeiro exercício do arquivo
+    /// escolhido: dá para ver o formato antes de apertar Iniciar.
+    /// </summary>
+    private void ShowLibraryPreview()
+    {
+        SetShownCurve(
+            _previewCurve,
+            _previewPlan,
+            _previewSummary,
+            _previewCaption,
+            _previewTolerance,
+            -1,
+            _previewCurve is not null);
+
+        _plotTrace = ReadOnlyMemory<DrillCurvePoint>.Empty;
+        _cursorSeconds = 0;
+        NextStepText = string.Empty;
+    }
+
+    private void SetShownCurve(
+        IReadOnlyList<DrillCurvePoint>? curve,
+        IReadOnlyList<DrillCurveStep> plan,
+        string summary,
+        string title,
+        double tolerance,
+        int planIndex,
+        bool isPreview)
+    {
+        _plotCurve = curve;
+        _isCurvePreview = isPreview;
+        TolerancePercent = tolerance;
+        CurvePlanTitle = title;
+        CurveSummary = summary;
+
+        UpdateCurveSteps(plan, planIndex);
+    }
+
+    /// <summary>Recria a tira de trechos só quando a curva ou o trecho atual mudam.</summary>
+    private void UpdateCurveSteps(IReadOnlyList<DrillCurveStep> plan, int planIndex)
+    {
+        if (ReferenceEquals(plan, _shownPlan) && planIndex == _shownPlanIndex)
+        {
+            return;
+        }
+
+        _shownPlan = plan;
+        _shownPlanIndex = planIndex;
+
+        CurveSteps.Clear();
+
+        foreach (DrillCurveStepItem item in DrillCurveStepItem.From(plan, planIndex))
+        {
+            CurveSteps.Add(item);
+        }
+    }
+
+    /// <summary>Copia a entrada do piloto, com o tempo relativo ao início da repetição.</summary>
+    private void CopyLiveTrace(DrillUpdate update)
+    {
+        double anchor = update.RepetitionStartSeconds;
         int copied = _engine.CopyTrace(_traceBuffer, anchor);
         int count = 0;
 
@@ -482,7 +632,33 @@ public sealed class DrillViewModel : ObservableObject
         }
 
         _plotTrace = new ReadOnlyMemory<DrillCurvePoint>(_plotBuffer, 0, count);
-        _cursorSeconds = running ? update.ElapsedSeconds : 0;
+    }
+
+    /// <summary>
+    /// Monta o desenho da primeira etapa do programa escolhido. Quando a etapa sorteia o
+    /// alvo, o desenho usa o meio da faixa — a forma da curva é a mesma.
+    /// </summary>
+    private void BuildPreviewCurve(DrillProgram? program)
+    {
+        _previewCurve = null;
+        _previewPlan = Array.Empty<DrillCurveStep>();
+        _previewSummary = string.Empty;
+        _previewCaption = "CURVA-ALVO";
+        _previewTolerance = 5;
+
+        DrillStep? first = program?.Steps.FirstOrDefault(step => step.Segments.Count > 0);
+        if (first is null || DrillCurvePreview.TryCreate(first) is not { } preview)
+        {
+            return;
+        }
+
+        _previewCurve = preview.Curve;
+        _previewPlan = preview.Plan;
+        _previewSummary = preview.Summary;
+        _previewTolerance = first.TolerancePercent;
+        _previewCaption = string.Create(
+            CultureInfo.CurrentCulture,
+            $"PRÉVIA · {DrillInstructor.StepTitle(first)}");
     }
 
     private void RefreshCommands()
