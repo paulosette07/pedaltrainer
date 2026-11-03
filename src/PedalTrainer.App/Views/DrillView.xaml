@@ -370,8 +370,47 @@
             </Border>
         </Grid>
 
-        <!-- ================= Repetições concluídas ================= -->
-        <Border Grid.Column="2" Style="{StaticResource CardBorder}" Margin="12,0,0,0">
+        <!-- ================= Próxima curva + repetições ================= -->
+        <Grid Grid.Column="2" Margin="12,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- A curva que vem depois desta repetição: fica na tela o tempo todo,
+                 inclusive enquanto o piloto está executando o movimento atual. -->
+            <Border Grid.Row="0" Style="{StaticResource CardBorder}" Padding="12,11">
+                <StackPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding UpcomingBadge}"
+                                   Style="{StaticResource CaptionText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding UpcomingTitle}" Style="{StaticResource SectionText}" />
+                    </DockPanel>
+
+                    <TextBlock Text="{Binding UpcomingDetail}"
+                               Style="{StaticResource CaptionText}"
+                               TextWrapping="Wrap"
+                               Margin="0,4,0,0" />
+
+                    <controls:NextCurvePlot x:Name="NextPlot" Height="128" Margin="0,8,0,0" />
+
+                    <DockPanel Margin="0,7,0,0">
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding UpcomingTarget}"
+                                   Style="{StaticResource CaptionText}"
+                                   Margin="8,0,0,0"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding UpcomingSummary}"
+                                   Style="{StaticResource CaptionText}"
+                                   TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="1" Style="{StaticResource CardBorder}" Margin="0,12,0,0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -443,6 +482,7 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
             </Grid>
-        </Border>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

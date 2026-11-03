@@ -18,6 +18,12 @@ public sealed record TrainingFrame
 
     public BrakingZone? ActiveZone { get; init; }
 
+    /// <summary>
+    /// Zona de frenagem que vem depois da atual (ou a próxima da fila, com o desafio
+    /// parado): a curva que o piloto precisa fazer em seguida.
+    /// </summary>
+    public BrakingZone? NextZone { get; init; }
+
     public double ReferenceBrakePercent { get; init; }
 
     public double ReferenceThrottlePercent { get; init; }

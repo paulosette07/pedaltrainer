@@ -33,6 +33,7 @@ public sealed class DrillRunner
     private IReadOnlyList<DrillCurveStep> _curvePlan = Array.Empty<DrillCurveStep>();
     private string _curveSummary = string.Empty;
     private string _nextStepLabel = string.Empty;
+    private DrillUpcomingCurve _nextCurve = DrillUpcomingCurve.None;
     private DrillRepetitionResult? _lastResult;
     private string _statusMessage = "Escolha um programa e clique em Iniciar.";
     private int _stepIndex;
@@ -145,6 +146,7 @@ public sealed class DrillRunner
         _curvePlan = Array.Empty<DrillCurveStep>();
         _curveSummary = string.Empty;
         _nextStepLabel = string.Empty;
+        _nextCurve = DrillUpcomingCurve.None;
         _stepIndex = 0;
         _repetitionIndex = 0;
         _repetitionsDone = 0;
@@ -307,6 +309,7 @@ public sealed class DrillRunner
             _curvePlan = Array.Empty<DrillCurveStep>();
             _curveSummary = string.Empty;
             _nextStepLabel = string.Empty;
+            _nextCurve = DrillUpcomingCurve.None;
             _armedAtRest = false;
             _targetLevelPercent = -1;
             _statusMessage = string.Create(
@@ -333,6 +336,9 @@ public sealed class DrillRunner
         _curvePlan = DrillCurvePlan.Build(_profile);
         _curveSummary = DrillCurvePlan.Summary(_profile);
         _nextStepLabel = ResolveNextStepLabel(step);
+        _nextCurve = _program is { } program
+            ? DrillUpcomingCurveFactory.Build(program, _stepIndex, _repetitionIndex)
+            : DrillUpcomingCurve.None;
         _analyzer = null;
         _armedAtRest = false;
         Stage = DrillStage.Armed;
@@ -457,6 +463,7 @@ public sealed class DrillRunner
             CurvePlanIndex = planIndex,
             CurveSummary = _curveSummary,
             NextStepLabel = _nextStepLabel,
+            NextCurve = _nextCurve,
             StatusMessage = _statusMessage
         };
     }

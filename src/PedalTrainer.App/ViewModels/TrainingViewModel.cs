@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
+using PedalTrainer.Core.Drills;
 using PedalTrainer.Core.Models;
 using PedalTrainer.Core.Training;
 
@@ -22,6 +23,12 @@ public sealed class TrainingViewModel : ObservableObject
 
     private IReadOnlyList<TraceSample>? _ghost;
     private int _ghostZoneIndex = -1;
+    private IReadOnlyList<DrillCurvePoint>? _nextCurve;
+    private IReadOnlyList<TraceSample>? _nextGhost;
+    private BrakingZone? _previewZone;
+    private string _nextZoneName = "Nenhuma curva à frente";
+    private string _nextZoneDetail = string.Empty;
+    private string _nextZoneBadge = string.Empty;
     private ReadOnlyMemory<TraceSample> _plotTrace = ReadOnlyMemory<TraceSample>.Empty;
     private double _cursorSeconds;
 
@@ -133,6 +140,30 @@ public sealed class TrainingViewModel : ObservableObject
 
     public double CursorSeconds => _cursorSeconds;
 
+    /// <summary>
+    /// Desenho da próxima curva: a frenagem que o piloto vai encarar depois desta.
+    /// Fica sempre preenchido para a tela nunca esconder o gráfico seguinte.
+    /// </summary>
+    public IReadOnlyList<DrillCurvePoint>? NextCurve => _nextCurve;
+
+    /// <summary>
+    /// Curva completa da próxima frenagem (com a entrada antes do ponto de freada), no
+    /// mesmo eixo do gráfico principal: é o desenho grande que aparece antes de frear.
+    /// </summary>
+    public IReadOnlyList<TraceSample>? NextGhost => _nextGhost;
+
+    /// <summary>Nome da próxima curva de referência.</summary>
+    public string NextZoneName { get => _nextZoneName; private set => SetProperty(ref _nextZoneName, value); }
+
+    /// <summary>Pico e duração da próxima curva ("pico 82% · 1,4 s").</summary>
+    public string NextZoneDetail { get => _nextZoneDetail; private set => SetProperty(ref _nextZoneDetail, value); }
+
+    /// <summary>Etiqueta da próxima curva na referência ("ZONA 3/12").</summary>
+    public string NextZoneBadge { get => _nextZoneBadge; private set => SetProperty(ref _nextZoneBadge, value); }
+
+    /// <summary>Banda de tolerância usada no desenho da próxima curva.</summary>
+    public double NextCurveTolerance => TolerancePercent;
+
     /// <summary>Nota numérica usada pelo medidor circular.</summary>
     public double ScoreValue { get; private set; }
 
@@ -198,6 +229,7 @@ public sealed class TrainingViewModel : ObservableObject
         SimulatorConnected = frame.Car.IsConnected;
         RateText = $"{frame.InputRateHz:0} Hz";
 
+        UpdateNextCurve(frame);
         UpdatePlot(frame, hasChallenge);
     }
 
@@ -206,6 +238,9 @@ public sealed class TrainingViewModel : ObservableObject
     {
         _ghost = null;
         _ghostZoneIndex = -1;
+        _nextCurve = null;
+        _nextGhost = null;
+        _previewZone = null;
         _plotTrace = ReadOnlyMemory<TraceSample>.Empty;
         _cursorSeconds = 0;
         IsChallengeActive = false;
@@ -261,6 +296,55 @@ public sealed class TrainingViewModel : ObservableObject
         }
 
         PlotDataChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Mantém o desenho da próxima curva pronto o tempo todo: o piloto vê a forma da
+    /// frenagem seguinte antes de chegar nela, com o desafio parado ou em andamento.
+    /// </summary>
+    private void UpdateNextCurve(TrainingFrame frame)
+    {
+        if (frame.NextZone is not { } zone || _engine.Session.ReferenceLap is not { } lap)
+        {
+            _previewZone = null;
+            _nextCurve = null;
+            _nextGhost = null;
+            NextZoneName = frame.ReferenceLoaded ? "Fim da volta" : "Sem referência";
+            NextZoneDetail = frame.ReferenceLoaded
+                ? "Nenhuma frenagem à frente."
+                : "Carregue uma volta de referência.";
+            NextZoneBadge = string.Empty;
+            return;
+        }
+
+        if (!ReferenceEquals(zone, _previewZone))
+        {
+            _previewZone = zone;
+            _nextGhost = GhostCurveBuilder.Build(lap, zone);
+            _nextCurve = BuildPreviewCurve(_nextGhost);
+        }
+
+        NextZoneName = zone.Name;
+        NextZoneDetail = string.Create(
+            CultureInfo.CurrentCulture,
+            $"pico {zone.PeakBrakePercent:0}% · {zone.DurationSeconds:0.0} s");
+        NextZoneBadge = string.Create(
+            CultureInfo.CurrentCulture,
+            $"ZONA {zone.Index + 1}/{Math.Max(zone.Index + 1, frame.ZoneCount)}");
+    }
+
+    /// <summary>Converte a curva fantasma da zona no desenho do painel, começando em zero.</summary>
+    private static IReadOnlyList<DrillCurvePoint> BuildPreviewCurve(IReadOnlyList<TraceSample> ghost)
+    {
+        var points = new List<DrillCurvePoint>(ghost.Count);
+        double origin = ghost.Count > 0 ? ghost[0].TimeSeconds : 0;
+
+        foreach (TraceSample sample in ghost)
+        {
+            points.Add(new DrillCurvePoint(sample.TimeSeconds - origin, sample.BrakePercent));
+        }
+
+        return points;
     }
 
     private int CopyWindow(double fromTimeSeconds) => _engine.CopyTrace(_rawBuffer, fromTimeSeconds);

@@ -77,5 +77,17 @@ public partial class TrainingView : UserControl
         }
 
         Plot.SetLive(viewModel.PlotTrace, viewModel.CursorSeconds);
+
+        // Sem desafio em andamento o gráfico principal mostra a próxima curva em âmbar,
+        // do mesmo jeito que a prévia do exercício na tela de programas.
+        Plot.SetUpcoming(
+            viewModel.Ghost is null ? viewModel.NextGhost : null,
+            $"{viewModel.NextZoneName} · {viewModel.NextZoneDetail}");
+
+        NextPlot.SetCurve(
+            viewModel.NextCurve,
+            viewModel.NextCurveTolerance,
+            false,
+            "Sem próxima curva.");
     }
 }

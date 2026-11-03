@@ -42,6 +42,25 @@ public sealed class TrainingSession
     /// <summary>Nome do modo de alinhamento em uso ("Distância" ou "Tempo").</summary>
     public string AlignmentModeName => _aligner?.ModeName ?? "-";
 
+    /// <summary>
+    /// Próxima zona de frenagem que o piloto vai encarar — a curva que ele precisa fazer
+    /// em seguida. Permite desenhar a prévia antes de o desafio começar.
+    /// </summary>
+    public BrakingZone? PeekNextZone(in CarTelemetry car)
+    {
+        if (_detector is null || _zones.Count == 0)
+        {
+            return null;
+        }
+
+        double? distance = ResolveDistance(car);
+        BrakingZone? active = ActiveZone;
+
+        return active is null
+            ? _detector.PeekNext(distance)
+            : _detector.PeekAfter(active, distance);
+    }
+
     /// <summary>Disparado ao fechar uma janela de desafio.</summary>
     public event Action<CornerResult>? ChallengeCompleted;
 

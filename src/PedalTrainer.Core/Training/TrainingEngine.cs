@@ -350,6 +350,7 @@ public sealed class TrainingEngine : IDisposable
             Car = car,
             Phase = update.Phase,
             ActiveZone = zone,
+            NextZone = _session.PeekNextZone(car),
             ReferenceBrakePercent = update.ReferenceBrakePercent,
             ReferenceThrottlePercent = update.ReferenceThrottlePercent,
             LiveScore = update.LiveScore,

@@ -90,6 +90,13 @@ public sealed record DrillUpdate
     /// <summary>Nome da etapa seguinte, quando esta é a última repetição da etapa atual.</summary>
     public string NextStepLabel { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Curva que vem depois desta repetição — a próxima da mesma etapa ou a primeira da
+    /// etapa seguinte. Publicada o tempo todo (inclusive durante a execução) para o painel
+    /// "próxima curva" nunca ficar vazio no meio do treino.
+    /// </summary>
+    public DrillUpcomingCurve NextCurve { get; init; } = DrillUpcomingCurve.None;
+
     /// <summary>Verdadeiro quando a curva desta repetição já pode ser desenhada.</summary>
     public bool HasCurve => TargetCurve is { Count: > 1 };
 

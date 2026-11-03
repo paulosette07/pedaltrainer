@@ -78,5 +78,12 @@ public partial class DrillView : UserControl
         Plot.SetPreview(viewModel.IsCurvePreview);
         Plot.SetTarget(viewModel.PlotCurve, viewModel.TolerancePercent);
         Plot.SetLive(viewModel.PlotTrace, viewModel.CursorSeconds);
+
+        DrillUpcomingCurve upcoming = viewModel.UpcomingCurve;
+        NextPlot.SetCurve(
+            upcoming.Curve,
+            upcoming.TolerancePercent,
+            upcoming.IsTargetEstimated,
+            upcoming.Kind == DrillUpcomingKind.ProgramEnd ? "Fim do programa" : "Sem curva prevista");
     }
 }

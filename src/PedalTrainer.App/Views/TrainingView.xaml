@@ -27,50 +27,44 @@
                                          Caption="PRECISÃO DA FRENAGEM" />
             </Border>
 
-            <!-- Estado do desafio -->
-            <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="12,0">
+            <!-- A curva que vem depois desta: ocupa a faixa larga do topo para o desenho
+                 aparecer com folga, inclusive enquanto o piloto faz a curva atual. -->
+            <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="12,0" Padding="14,10">
                 <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*" />
+                        <ColumnDefinition Width="1.1*" />
+                    </Grid.ColumnDefinitions>
 
-                    <DockPanel>
-                        <TextBlock DockPanel.Dock="Right"
-                                   Text="{Binding PhaseText}"
-                                   FontSize="10.5"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource AccentBrush}" />
-                        <TextBlock Text="DESAFIO ATUAL" Style="{StaticResource SectionText}" />
-                    </DockPanel>
-
-                    <TextBlock Grid.Row="1"
-                               Text="{Binding ZoneName}"
-                               FontSize="20"
-                               FontWeight="SemiBold"
-                               Margin="0,6,0,0"
-                               TextTrimming="CharacterEllipsis" />
-
-                    <TextBlock Grid.Row="2"
-                               Text="{Binding StatusMessage}"
-                               Style="{StaticResource BodyText}"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               Margin="0,6,0,6"
-                               VerticalAlignment="Top" />
-
-                    <StackPanel Grid.Row="3">
-                        <ProgressBar Style="{StaticResource FlatProgress}"
-                                     x:Name="ChallengeProgressBar"
-                                     Minimum="0" Maximum="1" />
-                        <DockPanel Margin="0,8,0,0">
+                    <StackPanel Grid.Column="0" Margin="0,0,14,0" VerticalAlignment="Top">
+                        <DockPanel>
                             <TextBlock DockPanel.Dock="Right"
-                                       Text="{Binding LastResultText}"
-                                       Style="{StaticResource CaptionText}" />
-                            <TextBlock Text="ÚLTIMA CURVA" Style="{StaticResource SectionText}" />
+                                       Text="{Binding NextZoneBadge}"
+                                       Style="{StaticResource CaptionText}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="PRÓXIMA CURVA" Style="{StaticResource SectionText}" />
                         </DockPanel>
+
+                        <TextBlock Text="{Binding NextZoneName}"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Margin="0,8,0,0"
+                                   TextTrimming="CharacterEllipsis" />
+
+                        <TextBlock Text="{Binding NextZoneDetail}"
+                                   Style="{StaticResource CaptionText}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0" />
+
+                        <TextBlock Text="A frenagem seguinte da referência — o desenho que vem depois desta."
+                                   Style="{StaticResource CaptionText}"
+                                   Foreground="{StaticResource TextMutedBrush}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,10,0,0" />
                     </StackPanel>
+
+                    <controls:NextCurvePlot Grid.Column="1" x:Name="NextPlot" />
                 </Grid>
             </Border>
 
@@ -134,30 +128,96 @@
         <!-- ================= Gráfico ================= -->
         <Border Grid.Row="1" Style="{StaticResource CardBorder}" Padding="12,10">
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="250" />
+                </Grid.ColumnDefinitions>
 
-                <DockPanel Margin="2,0,2,8">
-                    <TextBlock Text="REFERÊNCIA × SUA ENTRADA" Style="{StaticResource SectionText}" VerticalAlignment="Center" />
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource ReferenceBrush}" VerticalAlignment="Center" />
-                        <TextBlock Text="fantasma" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
+                    <DockPanel Margin="2,0,2,8">
+                        <TextBlock Text="REFERÊNCIA × SUA ENTRADA" Style="{StaticResource SectionText}" VerticalAlignment="Center" />
 
-                        <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" />
-                        <TextBlock Text="na tolerância" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource ReferenceBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="fantasma" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
 
-                        <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource DangerBrush}" VerticalAlignment="Center" />
-                        <TextBlock Text="fora" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
+                            <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="na tolerância" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
 
-                        <Rectangle Width="14" Height="6" RadiusX="2" RadiusY="2" Fill="#333FD0FF" VerticalAlignment="Center" />
-                        <TextBlock Text="banda" Style="{StaticResource CaptionText}" Margin="5,0,0,0" />
-                    </StackPanel>
-                </DockPanel>
+                            <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="{StaticResource DangerBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="fora" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
 
-                <controls:TracePlot Grid.Row="1" x:Name="Plot" />
+                            <Rectangle Width="14" Height="3" RadiusX="1.5" RadiusY="1.5" Fill="#FFC24B" VerticalAlignment="Center" />
+                            <TextBlock Text="próxima" Style="{StaticResource CaptionText}" Margin="5,0,14,0" />
+
+                            <Rectangle Width="14" Height="6" RadiusX="2" RadiusY="2" Fill="#333FD0FF" VerticalAlignment="Center" />
+                            <TextBlock Text="banda" Style="{StaticResource CaptionText}" Margin="5,0,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <controls:TracePlot Grid.Row="1" x:Name="Plot" />
+                </Grid>
+
+                <!-- Estado do desafio em andamento -->
+                <Border Grid.Column="1"
+                        Margin="12,0,0,0"
+                        Background="{StaticResource SurfaceRaisedBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12,10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="DESAFIO ATUAL" Style="{StaticResource SectionText}" />
+
+                        <TextBlock Grid.Row="1"
+                                   Text="{Binding PhaseText}"
+                                   FontSize="10.5"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,6,0,0" />
+
+                        <TextBlock Grid.Row="2"
+                                   Text="{Binding ZoneName}"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="0,6,0,0" />
+
+                        <StackPanel Grid.Row="3" Margin="0,10,0,8">
+                            <TextBlock Text="{Binding StatusMessage}"
+                                       Style="{StaticResource BodyText}"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap" />
+
+                            <ProgressBar Style="{StaticResource FlatProgress}"
+                                         x:Name="ChallengeProgressBar"
+                                         Minimum="0" Maximum="1"
+                                         Margin="0,12,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="4">
+                            <TextBlock Text="ÚLTIMA CURVA" Style="{StaticResource SectionText}" />
+                            <TextBlock Text="{Binding LastResultText}"
+                                       Style="{StaticResource CaptionText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
 

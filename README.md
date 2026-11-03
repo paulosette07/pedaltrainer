@@ -83,8 +83,8 @@ A correção definitiva é assinar o executável — veja [Assinatura digital](#
 
 | Tela | Para quê |
 | --- | --- |
-| **Treino** | Barra de freio/acelerador ao vivo, gráfico de traço contra a curva de referência, medidor de precisão, nota ao vivo, zonas da volta e estatísticas da sessão. |
-| **Programas** | Biblioteca de treinos do tipo "pise rápido até 20%, segure e solte devagar", com alvo sorteado por repetição. A curva do exercício aparece **antes** de você começar. Programas são arquivos JSON editáveis. |
+| **Treino** | Barra de freio/acelerador ao vivo, gráfico de traço contra a curva de referência, medidor de precisão, nota ao vivo, zonas da volta e estatísticas da sessão. Fora de um desafio o gráfico principal já desenha a próxima frenagem em âmbar; a faixa **PRÓXIMA CURVA**, no topo, mantém esse desenho na tela o tempo todo — inclusive enquanto você faz a curva atual. |
+| **Programas** | Biblioteca de treinos do tipo "pise rápido até 20%, segure e solte devagar", com alvo sorteado por repetição. O painel **PRÓXIMA CURVA** desenha a próxima repetição antes, durante e depois de cada uma. Programas são arquivos JSON editáveis. |
 | **Calibração** | Descobre qual eixo do controlador é o freio e qual é o acelerador, aprende a faixa bruta do pedal e ajusta zona morta, curva e suavização. |
 | **Configurações** | Simulador de onde vem a telemetria, rigor do treino (gatilho de frenagem, banda de tolerância), janela do gráfico, alinhamento por distância, escolha do controlador e do modelo de pedal. |
 
@@ -271,6 +271,21 @@ Durante a repetição o trecho em execução fica destacado, e quando a repetiç
 etapa o app avisa qual curva vem depois. Etapas com alvo sorteado aparecem com o meio da faixa
 na prévia: a forma da curva é sempre a mesma, só a altura muda.
 
+### O próximo gráfico fica na tela o tempo todo
+
+As duas telas de treino têm um painel **PRÓXIMA CURVA** que nunca some, nem no meio da
+repetição:
+
+| Onde | O que ele mostra |
+| --- | --- |
+| **Treino** | Com o desafio parado, o gráfico principal inteiro passa a ser a próxima frenagem — em âmbar tracejado, com banda de tolerância, marcadores de largada e de pico e a etiqueta `PRÓXIMA CURVA · pico 95% · 2,5 s`. Ao frear, ele volta para a curva de referência em azul contra a sua entrada, e a faixa larga do topo continua desenhando a frenagem seguinte, com nome, pico, duração e a miniatura da curva. A curva vem da posição na pista ou, sem posição, da ordem das zonas. |
+| **Programas** | A próxima repetição do exercício: a mesma curva da etapa (*PRÓXIMA REPETIÇÃO*, com a contagem `REP 3/10`) ou a primeira da etapa seguinte (*PRÓXIMA ETAPA*), com o nome da etapa e o alvo. Na última repetição do programa o painel avisa que o treino acabou. |
+
+Cada painel traz nome/título, pico e duração (`pico 82% · 1,4 s`), alvo e o desenho em
+miniatura — dá para conferir a forma da curva sem tirar o olho do gráfico principal. Etapas
+com alvo sorteado aparecem tracejadas no painel: a altura só é conhecida quando a repetição
+começa.
+
 ---
 
 ## Arquitetura
@@ -280,7 +295,7 @@ O app é dividido em uma biblioteca de domínio testável e uma casca WPF fina.
 ```
 PedalTrainer.Core   domínio puro: entrada, referência, treino, drills, telemetria, persistência
 PedalTrainer.App    WPF: janela, views, view models, controles de desenho e tema
-PedalTrainer.Tests  xUnit, 184 testes cobrindo o núcleo sem precisar de hardware
+PedalTrainer.Tests  xUnit, 201 testes cobrindo o núcleo sem precisar de hardware
 PedalTrainer.Probe  ferramenta de console para inspecionar controladores e eixos
 ```
 
@@ -294,11 +309,12 @@ acontece na thread de UI, e nenhuma chamada de UI acontece na thread do motor.
 | `PedalSignalProcessor` | Converte eixo bruto em percentual: faixa, inversão, zona morta, curva, filtro. |
 | `DirectInputPedalDevice` | Aquisição pelo DirectInput, com reconexão e taxa de amostragem medida. |
 | `AutoAxisMapper` | Descobre qual eixo é o freio e qual é o acelerador observando o movimento. |
-| `TrainingSession` | Máquina de estados: armado → desafio → resultado, com estatísticas. |
+| `TrainingSession` / `ChallengeDetector` | Máquina de estados (armado → desafio → resultado, com estatísticas) e escolha da zona; informam também a **próxima zona** (`PeekNext`/`PeekAfter`) sem mexer na fila do treino. |
 | `BrakingZoneExtractor` | Encontra as zonas de frenagem da referência a partir do gatilho configurado. |
 | `DistanceReferenceAligner` / `TimeReferenceAligner` | Casam a sua frenagem com a referência por posição na pista ou por tempo. |
 | `BrakingScorer` | Erro instantâneo, RMSE e nota do trecho. |
 | `DrillRunner` / `DrillProgramStore` | Execução dos programas de exercício e biblioteca em disco. |
+| `DrillUpcomingCurveFactory` | Monta a prévia da curva seguinte do programa: mesma etapa ou etapa nova, com alvo e tolerância. |
 | `SimTelemetrySource` | Laço de 60 Hz que percorre os leitores e publica o quadro de telemetria. |
 | `SimTelemetrySourceFactory` | Monta os leitores conforme o simulador escolhido (ou todos, no modo automático). |
 | `SimulatorCatalog` | Lista dos simuladores suportados, com nome exibido e dica de configuração. |
@@ -371,7 +387,7 @@ dotnet build PedalTrainer.slnx -c Release
 # alternativa com o SDK 8
 dotnet build src/PedalTrainer.App/PedalTrainer.App.csproj -c Release
 
-# rodar os testes (184 testes)
+# rodar os testes (201 testes)
 dotnet test tests/PedalTrainer.Tests/PedalTrainer.Tests.csproj -c Release
 
 # rodar a partir do código
@@ -493,6 +509,27 @@ powershell -ExecutionPolicy Bypass -File tools/branding/New-AppIcon.ps1
 ---
 
 ## Histórico
+
+### 1.5.0
+
+- **O próximo gráfico fica na tela o tempo todo**: a tela *Treino* ganhou a faixa
+  **PRÓXIMA CURVA** no topo, que desenha a frenagem seguinte da referência — pela posição na
+  pista ou pela ordem das zonas — inclusive enquanto você executa a curva atual. Antes a
+  curva de referência só aparecia durante o desafio. O cartão do desafio em andamento
+  desceu para a coluna da direita, liberando a largura do topo para o desenho da próxima
+  curva aparecer inteiro.
+- **A tela *Programas* também mostra a curva seguinte**: um painel permanente à direita
+  desenha a próxima repetição (`PRÓXIMA REPETIÇÃO`, com a contagem e o alvo) ou a primeira
+  repetição da etapa seguinte (`PRÓXIMA ETAPA`), e avisa quando o programa acabou. Antes, ao
+  começar a repetição, o gráfico trocava para a curva atual e a próxima só reaparecia no fim.
+- **A próxima curva ocupa o gráfico principal**: no *Treino*, enquanto você não está freando,
+  o gráfico grande inteiro mostra a frenagem seguinte em âmbar tracejado (com banda de
+  tolerância, largada, pico e etiqueta), em vez de ficar vazio esperando o primeiro toque no
+  pedal. É o mesmo desenho da prévia dos programas, em outra cor para não se confundir com a
+  referência azul nem com a entrada verde/vermelha.
+- Etapas com alvo sorteado aparecem tracejadas no painel: a altura só é conhecida quando a
+  repetição começa.
+- 201 testes (eram 184).
 
 ### 1.4.0
 

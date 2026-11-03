@@ -55,8 +55,73 @@ public sealed class ChallengeDetector
         return SelectNextSequential();
     }
 
+    /// <summary>
+    /// Zona que o piloto vai encarar se frear agora, sem alterar a sequência do treino.
+    /// Com posição de pista é a próxima frenagem à frente; sem ela, a seguinte da fila.
+    /// </summary>
+    public BrakingZone? PeekNext(double? distanceMeters)
+    {
+        if (_zones.Count == 0)
+        {
+            return null;
+        }
+
+        if (distanceMeters is double distance && _lap.HasDistanceData)
+        {
+            BrakingZone? ahead = FindZoneStartingAfter(distance - LookbackMeters);
+            if (ahead is not null)
+            {
+                return ahead;
+            }
+        }
+
+        return _zones[(_lastSelectedIndex + 1) % _zones.Count];
+    }
+
+    /// <summary>Zona seguinte à informada (a primeira, ao dar a volta na pista).</summary>
+    public BrakingZone? PeekAfter(BrakingZone zone, double? distanceMeters)
+    {
+        ArgumentNullException.ThrowIfNull(zone);
+
+        if (_zones.Count <= 1)
+        {
+            return _zones.Count == 1 ? _zones[0] : null;
+        }
+
+        if (distanceMeters is not null && _lap.HasDistanceData && zone.HasDistance)
+        {
+            BrakingZone? ahead = FindZoneStartingAfter(zone.EndDistanceMeters);
+            if (ahead is not null)
+            {
+                return ahead;
+            }
+        }
+
+        return _zones[(zone.Index + 1) % _zones.Count];
+    }
+
     /// <summary>Reinicia a sequência (usado ao carregar uma nova referência).</summary>
     public void Reset() => _lastSelectedIndex = -1;
+
+    private BrakingZone? FindZoneStartingAfter(double distanceMeters)
+    {
+        BrakingZone? best = null;
+
+        foreach (BrakingZone zone in _zones)
+        {
+            if (!zone.HasDistance || zone.StartDistanceMeters <= distanceMeters)
+            {
+                continue;
+            }
+
+            if (best is null || zone.StartDistanceMeters < best.StartDistanceMeters)
+            {
+                best = zone;
+            }
+        }
+
+        return best;
+    }
 
     private BrakingZone? FindNearestZoneByDistance(double distanceMeters)
     {

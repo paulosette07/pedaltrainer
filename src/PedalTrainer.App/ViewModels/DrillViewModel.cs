@@ -40,6 +40,13 @@ public sealed class DrillViewModel : ObservableObject
     private string _curvePlanTitle = "CURVA-ALVO";
     private string _nextStepText = string.Empty;
     private double _previewTolerance = 5;
+    private DrillUpcomingCurve _upcomingCurve = DrillUpcomingCurve.None;
+    private DrillUpcomingCurve _idleUpcomingCurve = DrillUpcomingCurve.None;
+    private string _upcomingTitle = "PRÓXIMA CURVA";
+    private string _upcomingDetail = string.Empty;
+    private string _upcomingSummary = string.Empty;
+    private string _upcomingTarget = string.Empty;
+    private string _upcomingBadge = string.Empty;
     private int _shownPlanIndex = -1;
     private bool _isCurvePreview;
     private double _cursorSeconds;
@@ -111,6 +118,24 @@ public sealed class DrillViewModel : ObservableObject
 
     /// <summary>Aviso de que a curva muda na etapa seguinte (vazio quando não muda).</summary>
     public string NextStepText { get => _nextStepText; private set => SetProperty(ref _nextStepText, value); }
+
+    /// <summary>Curva que vem depois desta repetição — o desenho do painel "próxima curva".</summary>
+    public DrillUpcomingCurve UpcomingCurve => _upcomingCurve;
+
+    /// <summary>Título do painel ("PRÓXIMA REPETIÇÃO", "PRÓXIMA ETAPA"...).</summary>
+    public string UpcomingTitle { get => _upcomingTitle; private set => SetProperty(ref _upcomingTitle, value); }
+
+    /// <summary>Explicação curta do que vem depois desta repetição.</summary>
+    public string UpcomingDetail { get => _upcomingDetail; private set => SetProperty(ref _upcomingDetail, value); }
+
+    /// <summary>Resumo da curva seguinte ("pico 90% · 3,3 s").</summary>
+    public string UpcomingSummary { get => _upcomingSummary; private set => SetProperty(ref _upcomingSummary, value); }
+
+    /// <summary>Alvo da curva seguinte, ou a faixa sorteada quando o alvo muda.</summary>
+    public string UpcomingTarget { get => _upcomingTarget; private set => SetProperty(ref _upcomingTarget, value); }
+
+    /// <summary>Etiqueta do canto do painel ("3/5", "ETAPA 2/4").</summary>
+    public string UpcomingBadge { get => _upcomingBadge; private set => SetProperty(ref _upcomingBadge, value); }
 
     public IRelayCommand StartCommand { get; }
 
@@ -278,6 +303,7 @@ public sealed class DrillViewModel : ObservableObject
         TargetMarkerPercent = update.TargetPercent >= 0 ? update.TargetPercent : -1;
 
         RegisterResult(update);
+        ApplyUpcoming(update);
 
         if (!renderPlot)
         {
@@ -286,6 +312,27 @@ public sealed class DrillViewModel : ObservableObject
 
         UpdatePlot(update);
         PlotDataChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// Mantém o painel da próxima curva sempre preenchido: com o treino parado mostra a
+    /// primeira curva do programa escolhido; em execução, a curva que vem depois desta
+    /// repetição (a mesma da etapa ou a primeira da etapa seguinte).
+    /// </summary>
+    private void ApplyUpcoming(DrillUpdate update)
+    {
+        ApplyUpcomingCurve(update.Stage == DrillStage.Idle ? _idleUpcomingCurve : update.NextCurve);
+    }
+
+    private void ApplyUpcomingCurve(DrillUpcomingCurve upcoming)
+    {
+        _upcomingCurve = upcoming;
+
+        UpcomingTitle = upcoming.Title;
+        UpcomingDetail = upcoming.Detail;
+        UpcomingSummary = upcoming.Summary;
+        UpcomingTarget = upcoming.TargetText;
+        UpcomingBadge = upcoming.Badge;
     }
 
     /// <summary>Recarrega a lista de programas do disco.</summary>
@@ -366,6 +413,7 @@ public sealed class DrillViewModel : ObservableObject
         }
 
         ShowLibraryPreview();
+        ApplyUpcomingCurve(_idleUpcomingCurve);
         PlotDataChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -645,20 +693,27 @@ public sealed class DrillViewModel : ObservableObject
         _previewSummary = string.Empty;
         _previewCaption = "CURVA-ALVO";
         _previewTolerance = 5;
+        _idleUpcomingCurve = DrillUpcomingCurve.None;
 
-        DrillStep? first = program?.Steps.FirstOrDefault(step => step.Segments.Count > 0);
-        if (first is null || DrillCurvePreview.TryCreate(first) is not { } preview)
+        if (program is null)
         {
             return;
         }
 
-        _previewCurve = preview.Curve;
-        _previewPlan = preview.Plan;
-        _previewSummary = preview.Summary;
-        _previewTolerance = first.TolerancePercent;
+        DrillUpcomingCurve upcoming = DrillUpcomingCurveFactory.BuildFirst(program);
+        if (!upcoming.HasCurve)
+        {
+            return;
+        }
+
+        _idleUpcomingCurve = upcoming;
+        _previewCurve = upcoming.Curve;
+        _previewPlan = upcoming.Plan;
+        _previewSummary = upcoming.Summary;
+        _previewTolerance = upcoming.TolerancePercent;
         _previewCaption = string.Create(
             CultureInfo.CurrentCulture,
-            $"PRÉVIA · {DrillInstructor.StepTitle(first)}");
+            $"PRÉVIA · {upcoming.StepLabel}");
     }
 
     private void RefreshCommands()

@@ -30,7 +30,16 @@ public sealed class TracePlot : FrameworkElement
     private static readonly Brush CursorBrush = CreateBrush(Color.FromArgb(0xAA, 0xE9, 0xED, 0xF2));
     private static readonly Brush MutedBrush = CreateBrush(Color.FromRgb(0x5E, 0x66, 0x74));
 
+    // Âmbar identifica a próxima curva: não se confunde com a referência (azul) nem com a
+    // entrada do piloto (verde/vermelho).
+    private static readonly Brush UpcomingBrush = CreateBrush(Color.FromRgb(0xFF, 0xC2, 0x4B));
+    private static readonly Brush UpcomingBandBrush = CreateBrush(Color.FromArgb(0x16, 0xFF, 0xC2, 0x4B));
+    private static readonly Brush UpcomingChipBrush = CreateBrush(Color.FromArgb(0xC8, 0x1B, 0x20, 0x27));
+    private static readonly Brush UpcomingChipBorderBrush = CreateBrush(Color.FromArgb(0x66, 0xFF, 0xC2, 0x4B));
+
     private IReadOnlyList<TraceSample>? _ghost;
+    private IReadOnlyList<TraceSample>? _upcoming;
+    private string _upcomingDetail = string.Empty;
     private ReadOnlyMemory<TraceSample> _live;
     private double _cursorSeconds;
     private double _tolerancePercent = 8;
@@ -91,6 +100,32 @@ public sealed class TracePlot : FrameworkElement
         InvalidateVisual();
     }
 
+    /// <summary>
+    /// Prévia da próxima curva: sem desafio ativo o gráfico grande mostra o desenho da
+    /// frenagem seguinte em âmbar, com a banda de tolerância e a etiqueta de pico.
+    /// </summary>
+    public void SetUpcoming(IReadOnlyList<TraceSample>? upcoming, string detail)
+    {
+        bool same = ReferenceEquals(upcoming, _upcoming)
+            && string.Equals(detail, _upcomingDetail, StringComparison.Ordinal);
+
+        _upcoming = upcoming;
+        _upcomingDetail = detail ?? string.Empty;
+
+        // A janela é reaplicada a cada quadro: SetGhost e SetTimeRange rodam antes desta
+        // chamada e devolveriam o eixo para a janela do modo armado.
+        if (upcoming is { Count: > 1 })
+        {
+            _xMin = upcoming[0].TimeSeconds;
+            _xMax = upcoming[^1].TimeSeconds;
+        }
+
+        if (!same)
+        {
+            InvalidateVisual();
+        }
+    }
+
     protected override void OnRender(DrawingContext dc)
     {
         var width = ActualWidth;
@@ -110,6 +145,17 @@ public sealed class TracePlot : FrameworkElement
         {
             DrawToleranceBand(dc, plot);
             DrawGhost(dc, plot);
+            DrawLive(dc, plot);
+            DrawCursor(dc, plot);
+            return;
+        }
+
+        // Sem desafio em andamento o gráfico principal mostra a próxima curva: o piloto vê
+        // o formato e o pico antes de encostar no freio.
+        if (_upcoming is { Count: > 1 })
+        {
+            DrawUpcoming(dc, plot);
+            return;
         }
 
         DrawLive(dc, plot);
@@ -205,6 +251,96 @@ public sealed class TracePlot : FrameworkElement
         {
             DrawPolyline(dc, plot, ghost, static s => s.ThrottlePercent, GhostSoftBrush, 1.2, dashed: true);
         }
+    }
+
+    /// <summary>
+    /// Desenha a próxima curva em âmbar (tracejada), com banda de tolerância, marcadores de
+    /// largada e de pico e a etiqueta com o resumo — o mesmo desenho da prévia do exercício.
+    /// </summary>
+    private void DrawUpcoming(DrawingContext dc, Rect plot)
+    {
+        IReadOnlyList<TraceSample> upcoming = _upcoming!;
+
+        var band = new StreamGeometry();
+        using (StreamGeometryContext ctx = band.Open())
+        {
+            ctx.BeginFigure(ToPoint(plot, upcoming[0].TimeSeconds, Math.Min(100, upcoming[0].BrakePercent + _tolerancePercent)), true, true);
+
+            for (var i = 1; i < upcoming.Count; i++)
+            {
+                ctx.LineTo(ToPoint(plot, upcoming[i].TimeSeconds, Math.Min(100, upcoming[i].BrakePercent + _tolerancePercent)), true, false);
+            }
+
+            for (int i = upcoming.Count - 1; i >= 0; i--)
+            {
+                ctx.LineTo(ToPoint(plot, upcoming[i].TimeSeconds, Math.Max(0, upcoming[i].BrakePercent - _tolerancePercent)), true, false);
+            }
+        }
+
+        band.Freeze();
+        dc.DrawGeometry(UpcomingBandBrush, null, band);
+
+        var pen = new Pen(UpcomingBrush, 2.2)
+        {
+            LineJoin = PenLineJoin.Round,
+            DashStyle = new DashStyle(new double[] { 5, 3.5 }, 0)
+        };
+        pen.Freeze();
+
+        var curve = new StreamGeometry();
+        using (StreamGeometryContext ctx = curve.Open())
+        {
+            ctx.BeginFigure(ToPoint(plot, upcoming[0].TimeSeconds, upcoming[0].BrakePercent), false, false);
+
+            for (var i = 1; i < upcoming.Count; i++)
+            {
+                ctx.LineTo(ToPoint(plot, upcoming[i].TimeSeconds, upcoming[i].BrakePercent), true, false);
+            }
+        }
+
+        curve.Freeze();
+        dc.DrawGeometry(null, pen, curve);
+
+        var peakIndex = 0;
+        for (var i = 1; i < upcoming.Count; i++)
+        {
+            if (upcoming[i].BrakePercent > upcoming[peakIndex].BrakePercent)
+            {
+                peakIndex = i;
+            }
+        }
+
+        TraceSample peak = upcoming[peakIndex];
+        Point start = ToPoint(plot, upcoming[0].TimeSeconds, upcoming[0].BrakePercent);
+        Point peakPoint = ToPoint(plot, peak.TimeSeconds, peak.BrakePercent);
+
+        var markerPen = new Pen(UpcomingBrush, 2);
+        markerPen.Freeze();
+        dc.DrawEllipse(BackgroundBrush, markerPen, start, 4.5, 4.5);
+        dc.DrawEllipse(BackgroundBrush, markerPen, peakPoint, 4, 4);
+
+        FormattedText peakLabel = CreateText($"{peak.BrakePercent:0}%", UpcomingBrush, 11);
+        double labelX = Math.Min(plot.Right - peakLabel.Width, peakPoint.X + 7);
+        dc.DrawText(peakLabel, new Point(labelX, Math.Max(plot.Top, peakPoint.Y - 18)));
+
+        DrawUpcomingChip(dc, plot);
+    }
+
+    private void DrawUpcomingChip(DrawingContext dc, Rect plot)
+    {
+        FormattedText title = CreateText("PRÓXIMA CURVA", UpcomingBrush, 11);
+        FormattedText detail = CreateText(_upcomingDetail, AxisTextBrush, 10.5);
+
+        double width = Math.Max(title.Width, detail.Width) + 20;
+        double height = title.Height + detail.Height + 12;
+        var chip = new Rect(plot.Left + 12, plot.Top + 10, width, height);
+
+        var borderPen = new Pen(UpcomingChipBorderBrush, 1);
+        borderPen.Freeze();
+        dc.DrawRoundedRectangle(UpcomingChipBrush, borderPen, chip, 7, 7);
+
+        dc.DrawText(title, new Point(chip.Left + 10, chip.Top + 5));
+        dc.DrawText(detail, new Point(chip.Left + 10, chip.Top + 6 + title.Height));
     }
 
     private void DrawLive(DrawingContext dc, Rect plot)
