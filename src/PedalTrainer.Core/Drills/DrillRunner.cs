@@ -14,7 +14,11 @@ public sealed class DrillRunner
     /// <summary>Tempo mostrando a nota da repetição antes de seguir.</summary>
     public const double ResultHoldSeconds = 1.4;
 
-    /// <summary>Quanto o pedal precisa subir acima do repouso para disparar a repetição.</summary>
+    /// <summary>
+    /// Quanto o pedal precisa subir acima do repouso para confirmar que o movimento começou.
+    /// Serve só para reconhecer o gesto: a repetição é ancorada no quadro de repouso, então
+    /// esse atraso de detecção não entra na conta.
+    /// </summary>
     public const double TriggerDeltaPercent = 2.0;
 
     /// <summary>Passo dos alvos sorteados, em pontos percentuais.</summary>
@@ -44,7 +48,11 @@ public sealed class DrillRunner
     private double _repetitionStartSeconds;
     private double _repetitionDoneSeconds;
     private double _valuePercent;
+    private double _restSeconds;
+    private double _restPercent;
+    private double _departureSeconds;
     private bool _armedAtRest;
+    private bool _departureCaptured;
 
     public DrillRunner(Random? random = null)
     {
@@ -152,6 +160,10 @@ public sealed class DrillRunner
         _repetitionsDone = 0;
         _targetLevelPercent = -1;
         _armedAtRest = false;
+        _restSeconds = 0;
+        _restPercent = 0;
+        _departureSeconds = 0;
+        _departureCaptured = false;
         Stage = DrillStage.Idle;
         _statusMessage = "Programa parado. Escolha um programa e clique em Iniciar.";
 
@@ -214,14 +226,46 @@ public sealed class DrillRunner
         if (value <= rest)
         {
             _armedAtRest = true;
+            _restSeconds = nowSeconds;
+            _restPercent = value;
+            _departureCaptured = false;
             _statusMessage = "Pedal no repouso — comece o movimento quando quiser.";
             return;
         }
 
-        if (_armedAtRest && value >= rest + TriggerDeltaPercent)
+        if (!_armedAtRest)
         {
-            BeginRepetition(nowSeconds);
+            return;
         }
+
+        // Primeiro quadro acima do repouso: interpola o instante em que o pé saiu do
+        // repouso, para o cronômetro nascer exatamente com o movimento.
+        if (!_departureCaptured)
+        {
+            _departureSeconds = InterpolateDeparture(rest, value, nowSeconds);
+            _departureCaptured = true;
+        }
+
+        if (value >= rest + TriggerDeltaPercent)
+        {
+            BeginRepetition(nowSeconds, _departureSeconds, _restPercent);
+        }
+    }
+
+    /// <summary>
+    /// Instante em que o pedal cruzou o nível de repouso, entre o último quadro parado e o
+    /// primeiro acima dele. Erro máximo: um quadro do motor.
+    /// </summary>
+    private double InterpolateDeparture(double rest, double value, double nowSeconds)
+    {
+        double span = value - _restPercent;
+        if (span <= 1e-6)
+        {
+            return _restSeconds;
+        }
+
+        double ratio = Math.Clamp((rest - _restPercent) / span, 0, 1);
+        return _restSeconds + (ratio * (nowSeconds - _restSeconds));
     }
 
     private void UpdateRunning(double value, double nowSeconds)
@@ -245,7 +289,13 @@ public sealed class DrillRunner
         }
     }
 
-    private void BeginRepetition(double nowSeconds)
+    /// <summary>
+    /// Dispara a repetição ancorada no último quadro de repouso: o cronômetro começa onde o
+    /// pé estava parado, e não quando o movimento já tinha subido alguns pontos. A curva é
+    /// reconstruída saindo desse mesmo percentual, para o traçado do piloto nascer em cima
+    /// da curva em vez de acima dela.
+    /// </summary>
+    private void BeginRepetition(double nowSeconds, double startedAtSeconds, double startPercent)
     {
         DrillStep? step = CurrentStep;
         if (step is null || _profile is null)
@@ -253,10 +303,11 @@ public sealed class DrillRunner
             return;
         }
 
-        _analyzer = new DrillRepetitionAnalyzer(_profile);
-        _repetitionStartSeconds = nowSeconds;
+        _repetitionStartSeconds = Math.Min(startedAtSeconds, nowSeconds);
+        ApplyProfile(startPercent);
+        _analyzer = new DrillRepetitionAnalyzer(_profile!);
         Stage = DrillStage.Running;
-        _statusMessage = DrillInstructor.DescribeWithPedal(_profile, 0);
+        _statusMessage = DrillInstructor.DescribeWithPedal(_profile!, 0);
     }
 
     private void FinishRepetition(double nowSeconds)
@@ -331,21 +382,40 @@ public sealed class DrillRunner
         }
 
         _targetLevelPercent = DrawTarget(step);
-        _profile = new DrillProfile(step, _targetLevelPercent);
-        _targetCurve = DrillTargetCurveBuilder.Build(_profile);
-        _curvePlan = DrillCurvePlan.Build(_profile);
-        _curveSummary = DrillCurvePlan.Summary(_profile);
+        ApplyProfile(0);
         _nextStepLabel = ResolveNextStepLabel(step);
         _nextCurve = _program is { } program
             ? DrillUpcomingCurveFactory.Build(program, _stepIndex, _repetitionIndex)
             : DrillUpcomingCurve.None;
         _analyzer = null;
         _armedAtRest = false;
+        _restSeconds = 0;
+        _restPercent = 0;
+        _departureSeconds = 0;
+        _departureCaptured = false;
         Stage = DrillStage.Armed;
 
         _statusMessage = string.Create(
             System.Globalization.CultureInfo.InvariantCulture,
             $"{DrillInstructor.StepTitle(step)} · repetição {_repetitionIndex + 1} de {step.Repetitions}. Solte o pedal para começar.");
+    }
+
+    /// <summary>
+    /// Monta a curva-alvo da repetição a partir de um percentual de partida. Sai do mesmo
+    /// ponto em que o pé está, então a repetição nunca começa "alguns pontos acima".
+    /// </summary>
+    private void ApplyProfile(double startPercent)
+    {
+        DrillStep? step = CurrentStep;
+        if (step is null)
+        {
+            return;
+        }
+
+        _profile = new DrillProfile(step, _targetLevelPercent, startPercent);
+        _targetCurve = DrillTargetCurveBuilder.Build(_profile);
+        _curvePlan = DrillCurvePlan.Build(_profile);
+        _curveSummary = DrillCurvePlan.Summary(_profile);
     }
 
     /// <summary>

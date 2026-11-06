@@ -39,6 +39,9 @@ public sealed class AppSettings
     /// <summary>Caminho da última volta de referência carregada.</summary>
     public string LastReferencePath { get; set; } = string.Empty;
 
+    /// <summary>Pista escolhida na aba de treino (vazio = Interlagos, a pista padrão).</summary>
+    public string TrackId { get; set; } = string.Empty;
+
     /// <summary>Quando verdadeiro, o app roda com pedais sintéticos.</summary>
     public bool UseSimulatedPedals { get; set; }
 

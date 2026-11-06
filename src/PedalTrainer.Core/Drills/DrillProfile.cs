@@ -11,16 +11,21 @@ public sealed class DrillProfile
 {
     private readonly List<Segment> _segments = new();
 
-    /// <summary>Constrói o perfil da etapa para um alvo (fixo ou sorteado).</summary>
-    public DrillProfile(DrillStep step, double targetPercent)
+    /// <summary>
+    /// Constrói o perfil da etapa para um alvo (fixo ou sorteado). O perfil começa no
+    /// <paramref name="startPercent"/>, que é a posição real do pedal no instante em que o
+    /// piloto começa o movimento — por isso a curva e o pé saem do mesmo ponto.
+    /// </summary>
+    public DrillProfile(DrillStep step, double targetPercent, double startPercent = 0)
     {
         ArgumentNullException.ThrowIfNull(step);
 
         TargetPercent = Math.Clamp(targetPercent, 0, 100);
+        StartPercent = Math.Clamp(startPercent, 0, 100);
         Step = step;
 
         double clock = 0;
-        double value = 0;
+        double value = StartPercent;
 
         foreach (DrillSegment segment in step.Segments)
         {
@@ -60,6 +65,9 @@ public sealed class DrillProfile
 
     /// <summary>Alvo usado nesta repetição.</summary>
     public double TargetPercent { get; }
+
+    /// <summary>Percentual do pedal no instante em que a repetição começou.</summary>
+    public double StartPercent { get; }
 
     /// <summary>Duração total da repetição, em segundos.</summary>
     public double DurationSeconds { get; }

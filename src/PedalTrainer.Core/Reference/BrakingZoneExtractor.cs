@@ -20,6 +20,13 @@ public sealed class BrakingZoneOptions
     /// <summary>Pausas menores que isso entre duas frenagens são unificadas.</summary>
     public double MergeGapSeconds { get; init; } = 0.15;
 
+    /// <summary>
+    /// Queda de velocidade mínima (km/h) para o trecho valer como frenagem. Evita que um
+    /// toque no pedal no meio de uma curva reta vire um desafio. Só se aplica quando a
+    /// volta traz a coluna de velocidade.
+    /// </summary>
+    public double MinSpeedDropKmh { get; init; } = 12.0;
+
     /// <summary>Quantidade máxima de zonas devolvidas (as mais relevantes primeiro).</summary>
     public int MaxZones { get; init; } = 40;
 }
@@ -38,18 +45,48 @@ public static class BrakingZoneExtractor
         var runs = FindActiveRuns(lap, options);
         var merged = MergeRuns(lap, runs, options.MergeGapSeconds);
 
+        // A coluna de velocidade só ajuda quando o carro realmente anda em velocidades
+        // diferentes; voltas sintéticas (demo) têm velocidade constante e seriam zeradas.
+        bool useSpeedDrop = HasSpeedColumn(lap);
+
         var zones = new List<BrakingZone>();
         for (int i = 0; i < merged.Count && zones.Count < options.MaxZones; i++)
         {
             (int startIndex, int endIndex) = merged[i];
             BrakingZone zone = BuildZone(lap, startIndex, endIndex, zones.Count);
-            if (zone.DurationSeconds >= options.MinDurationSeconds && zone.PeakBrakePercent >= options.EnterThresholdPercent)
+
+            if (zone.DurationSeconds < options.MinDurationSeconds ||
+                zone.PeakBrakePercent < options.EnterThresholdPercent ||
+                (useSpeedDrop && !HasEnoughSpeedDrop(lap, startIndex, endIndex, options.MinSpeedDropKmh)))
             {
-                zones.Add(zone);
+                continue;
             }
+
+            zones.Add(zone);
         }
 
         return zones;
+    }
+
+    /// <summary>Verdadeiro quando a volta traz velocidade e ela varia ao longo da volta.</summary>
+    private static bool HasSpeedColumn(ReferenceLap lap)
+    {
+        IReadOnlyList<ReferenceSample> samples = lap.Samples;
+        double lowest = double.MaxValue;
+        double highest = 0;
+
+        foreach (ReferenceSample sample in samples)
+        {
+            if (sample.SpeedKmh <= 0)
+            {
+                return false;
+            }
+
+            lowest = Math.Min(lowest, sample.SpeedKmh);
+            highest = Math.Max(highest, sample.SpeedKmh);
+        }
+
+        return highest - lowest >= 5.0;
     }
 
     private static List<(int Start, int End)> FindActiveRuns(ReferenceLap lap, BrakingZoneOptions options)
@@ -117,6 +154,34 @@ public static class BrakingZoneExtractor
         return merged;
     }
 
+    /// <summary>
+    /// Verdadeiro quando a frenagem realmente tira velocidade do carro. Voltas sem a coluna
+    /// de velocidade passam direto (não há como medir).
+    /// </summary>
+    private static bool HasEnoughSpeedDrop(ReferenceLap lap, int startIndex, int endIndex, double minimumDropKmh)
+    {
+        if (minimumDropKmh <= 0)
+        {
+            return true;
+        }
+
+        IReadOnlyList<ReferenceSample> samples = lap.Samples;
+        double start = samples[startIndex].SpeedKmh;
+
+        if (start <= 0)
+        {
+            return true;
+        }
+
+        double slowest = start;
+        for (int i = startIndex; i <= endIndex; i++)
+        {
+            slowest = Math.Min(slowest, samples[i].SpeedKmh);
+        }
+
+        return start - slowest >= minimumDropKmh;
+    }
+
     private static BrakingZone BuildZone(ReferenceLap lap, int startIndex, int endIndex, int ordinal)
     {
         IReadOnlyList<ReferenceSample> samples = lap.Samples;
@@ -133,9 +198,10 @@ public static class BrakingZoneExtractor
         }
 
         bool hasDistance = lap.HasDistanceData;
-        string label = string.Create(
-            CultureInfo.InvariantCulture,
-            $"Zona {ordinal + 1} · {first.TimeSeconds:0.0}s");
+
+        // O tempo de entrada já aparece no cartão do desafio ("pico 82% · 1,4 s"). No nome
+        // ele repetia a informação e ainda usava ponto decimal numa interface em português.
+        string label = "Zona " + (ordinal + 1).ToString(CultureInfo.CurrentCulture);
 
         return new BrakingZone(
             Index: ordinal,

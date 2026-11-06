@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PedalTrainer.App.ViewModels;
 using PedalTrainer.Core.Drills;
 using PedalTrainer.Core.Services;
+using PedalTrainer.Core.Tracks;
 using PedalTrainer.Core.Training;
 
 namespace PedalTrainer.App;
@@ -26,6 +27,8 @@ public partial class App : Application
         services.AddSingleton<SettingsStore>();
         services.AddSingleton<CalibrationStore>();
         services.AddSingleton<DrillProgramStore>();
+        services.AddSingleton<TrackStore>();
+        services.AddSingleton<ReferenceLibrary>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
 

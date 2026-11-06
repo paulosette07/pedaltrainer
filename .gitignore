@@ -32,6 +32,11 @@ coverage*.xml
 /pedal-probe.csv
 /PedalTrainer.slnx.user
 
+# Cache do OpenStreetMap e capturas de tela usados ao gerar o catálogo de pistas.
+# Os scripts que produzem os traçados ficam versionados; o material bruto não.
+tools/tmp/osm-cache/
+tools/tmp/shots/
+
 # ---------- Sistema ----------
 Thumbs.db
 desktop.ini

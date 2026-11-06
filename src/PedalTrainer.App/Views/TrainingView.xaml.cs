@@ -89,5 +89,10 @@ public partial class TrainingView : UserControl
             viewModel.NextCurveTolerance,
             false,
             "Sem próxima curva.");
+
+        Map.SetTrack(viewModel.MapTrack);
+        Map.SetZones(viewModel.MapZones, viewModel.MapTrackLengthMeters);
+        Map.SetHighlight(viewModel.MapActiveZoneIndex, viewModel.MapNextZoneIndex);
+        Map.SetPositions(viewModel.MapCarFraction, viewModel.MapReferenceFraction);
     }
 }

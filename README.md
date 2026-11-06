@@ -76,6 +76,9 @@ A correção definitiva é assinar o executável — veja [Assinatura digital](#
    acelerador) com curva-alvo, repetições e avaliação por repetição.
 5. **Grava a sua própria referência.** Um clique grava uma volta do simulador conectado e a
    transforma na referência do treino.
+6. **Sabe em que pista você está.** Catálogo de circuitos reais com o traçado desenhado no
+   mapa, volta ideal gerada a partir da geometria de cada um e uma pasta de referências por
+   pista — a sua volta do iRacing em Interlagos não se mistura com a de Monza.
 
 ---
 
@@ -83,7 +86,7 @@ A correção definitiva é assinar o executável — veja [Assinatura digital](#
 
 | Tela | Para quê |
 | --- | --- |
-| **Treino** | Barra de freio/acelerador ao vivo, gráfico de traço contra a curva de referência, medidor de precisão, nota ao vivo, zonas da volta e estatísticas da sessão. Fora de um desafio o gráfico principal já desenha a próxima frenagem em âmbar; a faixa **PRÓXIMA CURVA**, no topo, mantém esse desenho na tela o tempo todo — inclusive enquanto você faz a curva atual. |
+| **Treino** | Barra de freio/acelerador ao vivo, gráfico de traço contra a curva de referência, medidor de precisão, nota ao vivo, zonas da volta e estatísticas da sessão. A coluna da direita é o cartão da pista: seletor de circuito, **mapa do traçado** com as zonas de frenagem e a posição do carro e da referência, e a escolha da referência (volta ideal do sistema ou um arquivo seu). Fora de um desafio o gráfico principal já desenha a próxima frenagem em âmbar; a faixa **PRÓXIMA CURVA**, no topo, mantém esse desenho na tela o tempo todo — inclusive enquanto você faz a curva atual. |
 | **Programas** | Biblioteca de treinos do tipo "pise rápido até 20%, segure e solte devagar", com alvo sorteado por repetição. O painel **PRÓXIMA CURVA** desenha a próxima repetição antes, durante e depois de cada uma. Programas são arquivos JSON editáveis. |
 | **Calibração** | Descobre qual eixo do controlador é o freio e qual é o acelerador, aprende a faixa bruta do pedal e ajusta zona morta, curva e suavização. |
 | **Configurações** | Simulador de onde vem a telemetria, rigor do treino (gatilho de frenagem, banda de tolerância), janela do gráfico, alinhamento por distância, escolha do controlador e do modelo de pedal. |
@@ -98,8 +101,9 @@ A correção definitiva é assinar o executável — veja [Assinatura digital](#
 2. **Escolha o modelo do seu conjunto** — aba *Configurações* → *Modelo de pedal*. O catálogo
    aplica curva, zona morta e filtro recomendados para o hardware (Load Cell, Hall ou
    potenciômetro). Se o nome do controlador for reconhecido, o app já pré-seleciona.
-3. **Carregue uma referência** e faça uma frenagem — ou clique em *Volta demo* para começar
-   sem o simulador aberto.
+3. **Escolha a pista** — aba *Treino*, seletor **PISTA**. O app abre em **Interlagos** com a
+   volta ideal do sistema já carregada: dá para treinar sem simulador aberto, sem arquivo
+   nenhum.
 4. **Abra o simulador** (opcional, mas recomendado) e confirme em *Configurações* →
    *Simulador* que ele está selecionado — ou deixe em **Detectar automaticamente**. Com o
    jogo publicando telemetria, o app alinha a frenagem pela **distância percorrida** em vez
@@ -127,6 +131,68 @@ não deixar dúvida, escolha o simulador na lista: o app passa a ler só aquele.
 
 De cada jogo o app lê velocidade, freio, acelerador, número da volta e posição na pista. O
 tempo de sessão só existe no iRacing; nos outros o relógio é mantido internamente.
+
+---
+
+## Pistas e voltas de referência
+
+A aba *Treino* trabalha sempre **dentro de uma pista**. O cartão da direita tem o seletor de
+circuito, o mapa e a lista de referências daquela pista.
+
+- **Catálogo embutido.** 52 circuitos já vêm no executável:
+  - *Américas*: Interlagos, Goiânia, Curitiba, Cascavel, Tarumã, Road America, Road Atlanta,
+    Sebring, COTA, Laguna Seca, Sonoma, Mosport, Watkins Glen, Mid-Ohio.
+  - *Europa*: Imola, Mugello, Monza, Vallelunga, Velo Città, Misano, Spa,
+    Zolder, Zandvoort, Assen, Nürburgring, Hockenheim, Oschersleben, Brands Hatch,
+    Silverstone, Donington, Oulton Park, Barcelona, Jerez, Valência, Aragón, Estoril,
+    Magny-Cours, Dijon, Red Bull Ring, Hungaroring, Most.
+  - *Ásia e Oceania*: Suzuka, Fuji, Motegi, Okayama, Sepang, Buriram, Phillip Island,
+    Mount Panorama, Bahrain, Yas Marina, Lusail.
+
+  O app abre em **Interlagos**.
+- **Mapa do traçado.** O desenho vem da geometria real do circuito (levantamento do
+  OpenStreetMap, costurado numa volta fechada, escalado para o comprimento oficial e
+  reamostrado a cada 6 m). As zonas de frenagem aparecem pintadas sobre o asfalto: verde na
+  que está sendo treinada, âmbar na próxima e vinho nas demais. O carro (triângulo verde) e a
+  posição da referência (anel azul) andam pelo desenho quando o simulador publica a posição
+  na pista.
+- **Volta ideal de cada pista.** Nenhuma telemetria é obrigatória: o app calcula uma volta de
+  referência a partir do raio de cada curva, com limite lateral, frenagem, aceleração e
+  velocidade máxima de um carro de GT. Ela é a opção *Volta ideal do sistema* da lista e
+  serve de ponto de partida em qualquer circuito.
+- **Referências por pista.** A sua volta gravada, ou um arquivo importado, fica guardado na
+  pasta daquela pista (`tracks\references\<pista>`). A lista mostra o sistema primeiro e, em
+  seguida, os seus arquivos — dá para alternar entre a referência de ontem e a de hoje sem
+  procurar arquivo no disco.
+- **Importar traçado.** *Importar traçado* aceita um `.json` no formato abaixo e passa a usar
+  esse desenho no lugar do aproximado. Um traçado importado com o mesmo `id` de um circuito
+  do sistema **substitui** o do sistema, mantendo o nome e o lugar na lista.
+
+### Formato do arquivo de traçado
+
+```json
+{
+  "id": "minha-pista",
+  "name": "Minha Pista",
+  "city": "Interior",
+  "country": "Brasil",
+  "countryCode": "BR",
+  "lengthMeters": 3200,
+  "points": [0, 0, 120, 0, 240, 40, 300, 160],
+  "corners": [ { "name": "Curva 1", "fraction": 0.12 } ]
+}
+```
+
+| Campo | Obrigatório | Significado |
+| --- | --- | --- |
+| `id` | sim | Identificador; é o nome da pasta de referências da pista. |
+| `points` | sim | Lista plana `x, y` em **metros** (pelo menos três pares). |
+| `corners[].fraction` | não | Onde a curva começa na volta (0 = linha de chegada). Dá nome às zonas. |
+| `lengthMeters` | não | Comprimento oficial; o traçado é escalado para bater com ele. |
+
+O arquivo é reamostrado ao carregar: os pontos podem vir em qualquer espaçamento, e o app
+fecha a volta, alisa os cantos e ancora a linha de chegada no ponto mais próximo do primeiro
+ponto informado.
 
 ---
 
@@ -242,6 +308,11 @@ execução. São arquivos de texto comuns: copie, edite os percentuais e recarre
 | `segments[].toPercent` | Percentual ao fim do trecho; nulo usa o alvo da etapa. |
 | `restPercent` | Abaixo disso o pedal conta como solto (volta ao repouso). |
 
+O cronômetro da repetição começa no quadro em que o pé **sai do repouso**, não no instante em
+que o app confirma o movimento: a curva-alvo nasce no percentual em que o pedal estava parado
+e sobe dali para o alvo. Assim o traçado do piloto e a curva saem do mesmo ponto, e o exercício
+de pisada curta (0,3 s) não começa com o pé já alguns pontos acima do traçado.
+
 Regras de validação: cada etapa precisa de pelo menos um segmento, uma repetição e duração
 total de até 120 s por repetição; alvos ficam entre 5% e 100%.
 
@@ -295,7 +366,7 @@ O app é dividido em uma biblioteca de domínio testável e uma casca WPF fina.
 ```
 PedalTrainer.Core   domínio puro: entrada, referência, treino, drills, telemetria, persistência
 PedalTrainer.App    WPF: janela, views, view models, controles de desenho e tema
-PedalTrainer.Tests  xUnit, 201 testes cobrindo o núcleo sem precisar de hardware
+PedalTrainer.Tests  xUnit, 220 testes cobrindo o núcleo sem precisar de hardware
 PedalTrainer.Probe  ferramenta de console para inspecionar controladores e eixos
 ```
 
@@ -323,6 +394,11 @@ acontece na thread de UI, e nenhuma chamada de UI acontece na thread do motor.
 | `LeMansUltimateTelemetryReader` | Plugin `rFactor 2 Shared Memory Map` usado pelo LMU. |
 | `IRacingTelemetryReader` | Adapta o leitor do iRacing à interface comum. |
 | `LapRecorder` | Transforma uma volta do simulador em volta de referência. |
+| `TrackLibrary` / `TrackCatalog` | Catálogo de circuitos embutidos (JSON no assembly) e fusão com os traçados importados. |
+| `TrackPath` / `TrackPathBuilder` | Traçado fechado reamostrado em passos iguais, com fração de volta, direção e ponto mais próximo. |
+| `LapSpeedProfile` / `IdealLapFactory` | Volta ideal a partir do raio de cada curva, com frenagem, aceleração e arrasto. |
+| `ReferenceLibrary` / `TrackStore` | Referências por pista (sistema e arquivos do piloto) e traçados importados em disco. |
+| `TrackMap` / `TrackMapPainter` | Controle WPF que desenha o circuito, as zonas de frenagem e os marcadores do carro e da referência. |
 | `SettingsStore` / `CalibrationStore` | Persistência em JSON no perfil do usuário. |
 
 ---
@@ -338,9 +414,15 @@ Tudo em `%APPDATA%\PedalTrainer` (nada é gravado ao lado do .exe):
 ├── drills\
 │   ├── freio-progressivo.drill.json
 │   └── aceleracao-progressiva.drill.json
-└── samples\
-    ├── demo-lap.csv                       volta demo gerada pelo app
-    └── volta-20260101-153000.csv          voltas gravadas do simulador conectado
+├── samples\
+│   └── volta-20260101-153000.csv          voltas gravadas do simulador conectado
+└── tracks\
+    ├── maps\                              traçados importados pelo piloto
+    │   └── minha-pista.json
+    └── references\                        uma pasta por pista
+        ├── interlagos\
+        │   └── volta-interlagos-20260101-153000.csv
+        └── monza\
 ```
 
 Apagar `settings.json`/`calibration.json` restaura os padrões. Apagar a pasta `drills`
@@ -387,7 +469,7 @@ dotnet build PedalTrainer.slnx -c Release
 # alternativa com o SDK 8
 dotnet build src/PedalTrainer.App/PedalTrainer.App.csproj -c Release
 
-# rodar os testes (201 testes)
+# rodar os testes (220 testes)
 dotnet test tests/PedalTrainer.Tests/PedalTrainer.Tests.csproj -c Release
 
 # rodar a partir do código
@@ -505,10 +587,48 @@ powershell -ExecutionPolicy Bypass -File tools/branding/New-AppIcon.ps1
   (veja [Assinatura digital](#assinatura-digital)); falta apenas o certificado.
 - Voltas gravadas precisam cobrir pelo menos 90% da pista; voltas parciais são descartadas de
   propósito, para não gerar referência incompleta.
+- **O traçado do mapa é esquemático.** Sai do eixo da pista levantado no OpenStreetMap,
+  costurado e escalado para o comprimento oficial — serve para localizar a curva e as zonas
+  de frenagem, não para medir largura de pista ou zebra. Se você tem um desenho melhor,
+  importe pelo botão *Importar traçado*.
+- **Alguns circuitos da lista de referência não têm levantamento utilizável** no OpenStreetMap
+  (traçado desenhado como área, só parcialmente mapeado ou ausente) e por isso não entram no
+  executável: são 52 dos 58 catalogados, e a lista é regenerada a cada versão. Nesses casos,
+  importe um arquivo de traçado — o app aceita qualquer pista no formato descrito acima.
 
 ---
 
 ## Histórico
+
+### 1.6.0
+
+- **Catálogo de pistas com mapa**: a aba *Treino* ganhou a coluna da direita com o seletor de
+  circuito, o desenho do traçado e a lista de referências da pista. O app abre em
+  **Interlagos** já com a volta ideal do sistema carregada — dá para treinar sem simulador e
+  sem arquivo. São 52 circuitos com geometria levantada no OpenStreetMap, costurada numa
+  volta fechada e escalada para o comprimento oficial.
+- **Volta ideal gerada do traçado**: sem telemetria, o app calcula a referência de qualquer
+  pista a partir do raio de cada curva (limite lateral, frenagem, aceleração e arrasto de um
+  carro de GT). Interlagos sai em ~1:25 contra 1:08 do recorde real, com uma dúzia de
+  frenagens — o suficiente para treinar a pisada em qualquer circuito.
+- **Uma pasta de referências por pista**: a volta gravada no simulador, ou um arquivo
+  importado, fica em `tracks\references\<pista>` em vez de uma pasta única. A lista mostra a
+  volta do sistema e as suas, e a escolha é lembrada na próxima abertura.
+- **Mapa com as zonas de frenagem**: verde na zona em treino, âmbar na próxima e vinho nas
+  demais, com o carro (triângulo) e a referência (anel) andando pelo desenho quando o jogo
+  publica a posição na pista.
+- **Importar traçado**: um `.json` com a lista de pontos substitui o desenho aproximado de
+  qualquer circuito (ou cria um novo).
+- **Frenagem só conta se tirar velocidade**: a detecção de zonas passou a exigir queda real de
+  velocidade quando a volta traz a coluna `Speed`, o que corta toques de pedal no meio da reta.
+- **A repetição começa onde o pé estava**: o cronômetro do exercício passou a ser ancorado no
+  quadro em que o pedal sai do repouso (antes ele começava alguns pontos acima, quando o app
+  confirmava o movimento), e a curva-alvo nasce nesse mesmo percentual em vez de zero. Numa
+  pisada de 0,3 s isso tirava até 5% de curso do começo da curva e fazia o piloto aparecer
+  fora da banda no primeiro quadro; agora o traçado e a curva partem juntos.
+- 220 testes (eram 201), incluindo a geometria do traçado, o catálogo inteiro (com um teste
+  que recusa volta costurada com vão longo), a biblioteca de referências e o alinhamento do
+  início da repetição.
 
 ### 1.5.0
 

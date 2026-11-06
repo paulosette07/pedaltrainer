@@ -4,6 +4,7 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using PedalTrainer.Core.Drills;
 using PedalTrainer.Core.Models;
+using PedalTrainer.Core.Tracks;
 using PedalTrainer.Core.Training;
 
 namespace PedalTrainer.App.ViewModels;
@@ -16,6 +17,7 @@ public sealed class TrainingViewModel : ObservableObject
 {
     private const int MaxPlotSamples = 8192;
     private const double ArmedWindowSeconds = 4.0;
+    private const string ZoneIdleLabel = "Nenhuma zona ativa";
 
     private readonly TrainingEngine _engine;
     private readonly TraceSample[] _rawBuffer = new TraceSample[MaxPlotSamples];
@@ -63,10 +65,40 @@ public sealed class TrainingViewModel : ObservableObject
     private bool _simulatorConnected;
     private string _rateText = "-- Hz";
 
-    public TrainingViewModel(TrainingEngine engine)
+    private double? _mapCarFraction;
+    private double? _mapReferenceFraction;
+    private int _mapActiveZoneIndex = -1;
+    private int _mapNextZoneIndex = -1;
+
+    public TrainingViewModel(TrainingEngine engine, TrackPanelViewModel trackPanel)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
+        TrackPanel = trackPanel ?? throw new ArgumentNullException(nameof(trackPanel));
     }
+
+    /// <summary>Cartão da pista (seleção, referência e mapa) ligado a esta tela.</summary>
+    public TrackPanelViewModel TrackPanel { get; }
+
+    /// <summary>Pista desenhada no mapa.</summary>
+    public TrackDefinition MapTrack => TrackPanel.SelectedTrack;
+
+    /// <summary>Zonas de frenagem da referência atual, para marcar no mapa.</summary>
+    public IReadOnlyList<BrakingZone> MapZones => _engine.Session.Zones;
+
+    /// <summary>Comprimento da referência em metros (base das frações do mapa).</summary>
+    public double MapTrackLengthMeters => _engine.Session.ReferenceLap?.TrackLengthMeters ?? 0;
+
+    /// <summary>Fração de volta onde o carro está (nulo sem telemetria de posição).</summary>
+    public double? MapCarFraction => _mapCarFraction;
+
+    /// <summary>Fração de volta onde a referência está freando (nulo sem referência).</summary>
+    public double? MapReferenceFraction => _mapReferenceFraction;
+
+    /// <summary>Zona do desafio atual (-1 quando nenhuma).</summary>
+    public int MapActiveZoneIndex => _mapActiveZoneIndex;
+
+    /// <summary>Próxima zona da fila (-1 quando nenhuma).</summary>
+    public int MapNextZoneIndex => _mapNextZoneIndex;
 
     /// <summary>Disparado quando os dados do gráfico mudam; a view redesenha.</summary>
     public event EventHandler? PlotDataChanged;
@@ -206,7 +238,7 @@ public sealed class TrainingViewModel : ObservableObject
         RmseText = hasChallenge ? FormatPercent(frame.RmsePercent) : "-";
         ThrottleAccuracyText = hasChallenge ? FormatPercent(frame.ThrottleAccuracy) : "-";
 
-        ZoneName = frame.ActiveZone?.Name ?? "Nenhuma zona ativa";
+        ZoneName = ZoneHeadline(frame);
         PhaseText = PhaseLabel(frame.Phase);
         StatusMessage = frame.StatusMessage;
 
@@ -231,6 +263,7 @@ public sealed class TrainingViewModel : ObservableObject
 
         UpdateNextCurve(frame);
         UpdatePlot(frame, hasChallenge);
+        UpdateMap(frame);
     }
 
     /// <summary>Limpa o gráfico e os números (ao trocar de referência).</summary>
@@ -243,6 +276,10 @@ public sealed class TrainingViewModel : ObservableObject
         _previewZone = null;
         _plotTrace = ReadOnlyMemory<TraceSample>.Empty;
         _cursorSeconds = 0;
+        _mapCarFraction = null;
+        _mapReferenceFraction = null;
+        _mapActiveZoneIndex = -1;
+        _mapNextZoneIndex = -1;
         IsChallengeActive = false;
         ScoreText = "--";
         GradeText = string.Empty;
@@ -324,7 +361,7 @@ public sealed class TrainingViewModel : ObservableObject
             _nextCurve = BuildPreviewCurve(_nextGhost);
         }
 
-        NextZoneName = zone.Name;
+        NextZoneName = ZoneTitle(zone);
         NextZoneDetail = string.Create(
             CultureInfo.CurrentCulture,
             $"pico {zone.PeakBrakePercent:0}% · {zone.DurationSeconds:0.0} s");
@@ -345,6 +382,83 @@ public sealed class TrainingViewModel : ObservableObject
         }
 
         return points;
+    }
+
+    /// <summary>
+    /// Preenche o mapa: posição do carro pela telemetria e posição da referência no ponto
+    /// de frenagem que está sendo treinado (ou no próximo, com o desafio parado).
+    /// </summary>
+    private void UpdateMap(TrainingFrame frame)
+    {
+        double length = _engine.Session.ReferenceLap?.TrackLengthMeters ?? 0;
+
+        _mapCarFraction = frame.Car is { IsConnected: true, HasLapPosition: true }
+            ? Math.Clamp(frame.Car.LapDistancePercent, 0, 0.9999)
+            : null;
+
+        BrakingZone? active = frame.ActiveZone;
+        BrakingZone? next = frame.NextZone;
+
+        _mapActiveZoneIndex = active?.Index ?? -1;
+        _mapNextZoneIndex = next?.Index ?? -1;
+        _mapReferenceFraction = ReferenceFraction(frame, active ?? next, length);
+    }
+
+    private static double? ReferenceFraction(TrainingFrame frame, BrakingZone? zone, double trackLengthMeters)
+    {
+        if (zone is null || trackLengthMeters <= 0)
+        {
+            return null;
+        }
+
+        double progress = 0;
+
+        if (frame.ActiveZone is not null && zone.DurationSeconds > 0)
+        {
+            progress = Math.Clamp(frame.ElapsedInZoneSeconds / zone.DurationSeconds, 0, 1);
+        }
+
+        double distance = zone.StartDistanceMeters + (zone.DistanceLengthMeters * progress);
+        return Math.Clamp(distance / trackLengthMeters, 0, 0.9999);
+    }
+
+    /// <summary>
+    /// Título do cartão do desafio: com a frenagem em andamento mostra a zona atual;
+    /// parado, anuncia a próxima — nunca "nenhuma zona" quando há uma curva à frente.
+    /// </summary>
+    private string ZoneHeadline(TrainingFrame frame)
+    {
+        if (frame.ActiveZone is { } active)
+        {
+            return ZoneTitle(active);
+        }
+
+        if (frame.NextZone is { } next)
+        {
+            return "A seguir: " + ZoneTitle(next);
+        }
+
+        return ZoneIdleLabel;
+    }
+
+    /// <summary>
+    /// Nome da zona para a tela: quando o traçado conhece a curva, usa o nome dela
+    /// ("Ferradura") em vez do rótulo genérico ("Zona 4").
+    /// </summary>
+    private string ZoneTitle(BrakingZone? zone)
+    {
+        if (zone is null)
+        {
+            return ZoneIdleLabel;
+        }
+
+        if (!zone.HasDistance || _engine.Session.ReferenceLap is not { } lap || lap.TrackLengthMeters <= 0)
+        {
+            return zone.Name;
+        }
+
+        double fraction = zone.StartDistanceMeters / lap.TrackLengthMeters;
+        return TrackPanel.SelectedTrack.CornerNear(fraction)?.Name ?? zone.Name;
     }
 
     private int CopyWindow(double fromTimeSeconds) => _engine.CopyTrace(_rawBuffer, fromTimeSeconds);

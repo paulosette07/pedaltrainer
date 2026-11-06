@@ -14,4 +14,9 @@
     <PackageReference Include="SharpDX.DirectInput" Version="4.2.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Traçados das pistas (JSON reamostrado, gerado de dados do OpenStreetMap). -->
+    <EmbeddedResource Include="Tracks\Data\*.json" />
+  </ItemGroup>
+
 </Project>

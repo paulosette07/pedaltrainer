@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using PedalTrainer.Core.Input.Pedals;
 using PedalTrainer.Core.Models;
 using PedalTrainer.Core.Telemetry;
+using PedalTrainer.Core.Tracks;
 using PedalTrainer.Core.Training;
 
 namespace PedalTrainer.App.ViewModels;
@@ -62,4 +63,31 @@ public interface IShellActions
 
     /// <summary>Troca o simulador lido e reconecta a fonte de telemetria na hora.</summary>
     void SelectSimulator(SimulatorInfo simulator);
+
+    /// <summary>Pistas disponíveis: as do sistema mais as importadas pelo piloto.</summary>
+    IReadOnlyList<TrackDefinition> Tracks { get; }
+
+    /// <summary>Pista em uso na aba de treino (nunca nula).</summary>
+    TrackDefinition SelectedTrack { get; }
+
+    /// <summary>Troca a pista, carrega a referência dela e grava a escolha.</summary>
+    void SelectTrack(TrackDefinition track);
+
+    /// <summary>Referências oferecidas para a pista atual (sistema + arquivos do piloto).</summary>
+    IReadOnlyList<TrackReferenceSource> ListReferenceSources();
+
+    /// <summary>Carrega a referência escolhida na lista.</summary>
+    bool LoadReferenceSource(TrackReferenceSource source, out string? error);
+
+    /// <summary>Copia uma telemetria escolhida pelo piloto para a pasta da pista atual.</summary>
+    string ImportReferenceFile(string sourcePath);
+
+    /// <summary>Importa um traçado e passa a usá-lo como pista atual.</summary>
+    TrackDefinition? ImportTrackMap(string sourcePath, out string? error);
+
+    /// <summary>Filtro de arquivo para importar um traçado (formato JSON).</summary>
+    string TrackMapFileFilter { get; }
+
+    /// <summary>Filtro de arquivo para carregar uma telemetria de referência.</summary>
+    string ReferenceFileFilter { get; }
 }

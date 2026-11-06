@@ -17,6 +17,7 @@ using PedalTrainer.Core.Recording;
 using PedalTrainer.Core.Reference;
 using PedalTrainer.Core.Services;
 using PedalTrainer.Core.Telemetry;
+using PedalTrainer.Core.Tracks;
 using PedalTrainer.Core.Training;
 
 namespace PedalTrainer.App.ViewModels;
@@ -33,10 +34,14 @@ public sealed class MainViewModel : ObservableObject, IShellActions
     private readonly SettingsStore _settingsStore;
     private readonly CalibrationStore _calibrationStore;
     private readonly ReferenceLapFileLoader _referenceLoader = new();
+    private readonly TrackStore _trackStore;
+    private readonly ReferenceLibrary _referenceLibrary;
     private readonly DispatcherTimer _timer;
     private readonly List<PedalDeviceDescriptor> _devices = new();
     private readonly List<object> _screens = new();
 
+    private List<TrackDefinition> _tracks;
+    private TrackDefinition _selectedTrack;
     private AppSettings _settings;
     private PedalCalibration _calibration;
     private PedalModel _pedalModel = PedalModelCatalog.Unknown;
@@ -56,18 +61,26 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         TrainingEngine engine,
         SettingsStore settingsStore,
         CalibrationStore calibrationStore,
-        DrillProgramStore drillProgramStore)
+        DrillProgramStore drillProgramStore,
+        TrackStore trackStore,
+        ReferenceLibrary referenceLibrary)
     {
         Engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
         _calibrationStore = calibrationStore ?? throw new ArgumentNullException(nameof(calibrationStore));
+        _trackStore = trackStore ?? throw new ArgumentNullException(nameof(trackStore));
+        _referenceLibrary = referenceLibrary ?? throw new ArgumentNullException(nameof(referenceLibrary));
 
         _settings = _settingsStore.Load();
         _calibration = _calibrationStore.Load();
         _pedalModel = PedalModelCatalog.Find(_settings.PedalModelId);
         _simulator = SimulatorCatalog.Parse(_settings.SimulatorId);
 
-        Training = new TrainingViewModel(engine);
+        _tracks = new List<TrackDefinition>(TrackCatalog.Merge(_trackStore.LoadAll()));
+        _selectedTrack = TrackCatalog.Find(_tracks, _settings.TrackId) ?? TrackCatalog.Default;
+
+        TrackPanel = new TrackPanelViewModel(this);
+        Training = new TrainingViewModel(engine, TrackPanel);
         Drills = new DrillViewModel(engine, drillProgramStore ?? throw new ArgumentNullException(nameof(drillProgramStore)));
         Calibration = new CalibrationViewModel(this);
         SettingsScreen = new SettingsViewModel(this);
@@ -99,8 +112,23 @@ public sealed class MainViewModel : ObservableObject, IShellActions
 
     public TrainingViewModel Training { get; }
 
+    /// <summary>Cartão da pista dentro da aba de treino (mapa, seleção e referência).</summary>
+    public TrackPanelViewModel TrackPanel { get; }
+
     /// <summary>Tela de programas de treino (exercícios de freio e acelerador).</summary>
     public DrillViewModel Drills { get; }
+
+    /// <summary>Pistas disponíveis: do sistema e importadas.</summary>
+    public IReadOnlyList<TrackDefinition> Tracks => _tracks;
+
+    /// <summary>Pista em uso na aba de treino.</summary>
+    public TrackDefinition SelectedTrack => _selectedTrack;
+
+    /// <summary>Filtro do diálogo de importação de traçado.</summary>
+    public string TrackMapFileFilter => "Traçado de pista (*.json)|*.json|Todos os arquivos|*.*";
+
+    /// <summary>Filtro do diálogo de telemetria de referência.</summary>
+    public string ReferenceFileFilter => _referenceLoader.BuildFileDialogFilter();
 
     public CalibrationViewModel Calibration { get; }
 
@@ -273,6 +301,88 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         SimulatorSummary = Engine.CarSource.StatusDescription;
     }
 
+    /// <summary>Troca a pista e já carrega a volta ideal dela como referência.</summary>
+    public void SelectTrack(TrackDefinition track)
+    {
+        ArgumentNullException.ThrowIfNull(track);
+
+        _selectedTrack = track;
+        _settings.TrackId = track.Id;
+        _settingsStore.Save(_settings);
+
+        LoadSystemReference(track);
+        OnPropertyChanged(nameof(SelectedTrack));
+
+        ShellMessage = $"Pista: {track.Name} · {track.LocationText}.";
+    }
+
+    /// <summary>Referências oferecidas para a pista atual.</summary>
+    public IReadOnlyList<TrackReferenceSource> ListReferenceSources() =>
+        _referenceLibrary.ListSources(_selectedTrack);
+
+    /// <summary>Carrega a referência escolhida na lista da pista atual.</summary>
+    public bool LoadReferenceSource(TrackReferenceSource source, out string? error)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        if (!_referenceLibrary.TryLoad(source, _selectedTrack, out ReferenceLap? lap, out error) || lap is null)
+        {
+            return false;
+        }
+
+        ApplyReference(lap, source.IsSystem ? null : source.Path);
+        TrackPanel.NotifyReferenceChanged();
+        ShellMessage = $"Referência: {source.Label} · {_selectedTrack.ShortName}.";
+        return true;
+    }
+
+    /// <summary>Copia a telemetria escolhida para a pasta da pista atual.</summary>
+    public string ImportReferenceFile(string sourcePath)
+    {
+        string destination = _referenceLibrary.ImportLap(_selectedTrack, sourcePath);
+        ShellMessage = $"Telemetria importada para {_selectedTrack.ShortName}.";
+        return destination;
+    }
+
+    /// <summary>Importa um traçado (JSON) e passa a usá-lo como pista atual.</summary>
+    public TrackDefinition? ImportTrackMap(string sourcePath, out string? error)
+    {
+        if (!_trackStore.TryImport(sourcePath, out TrackDefinition? track, out error) || track is null)
+        {
+            return null;
+        }
+
+        _tracks = new List<TrackDefinition>(TrackCatalog.Merge(_trackStore.LoadAll()));
+        OnPropertyChanged(nameof(Tracks));
+
+        SelectTrack(track);
+        ShellMessage = $"Traçado de {track.Name} importado de {Path.GetFileName(sourcePath)}.";
+        return track;
+    }
+
+    /// <summary>Carrega a volta ideal gerada do traçado (a referência padrão da pista).</summary>
+    private void LoadSystemReference(TrackDefinition track)
+    {
+        ReferenceLap lap = _referenceLibrary.GetIdealLap(track);
+        ApplyReference(lap, null);
+    }
+
+    /// <summary>Verdadeiro quando o arquivo está na pasta de referências desta pista.</summary>
+    private bool IsTrackReferenceFile(TrackDefinition track, string path)
+    {
+        try
+        {
+            string directory = Path.GetFullPath(_referenceLibrary.GetReferenceDirectory(track));
+            string? parent = Path.GetDirectoryName(Path.GetFullPath(path));
+
+            return parent is not null && string.Equals(parent, directory, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception exception) when (exception is IOException or ArgumentException or NotSupportedException)
+        {
+            return false;
+        }
+    }
+
     /// <summary>Janela usada pelo DirectInput no nível de cooperação em background.</summary>
     public void AttachWindow(IntPtr handle)
     {
@@ -297,7 +407,7 @@ public sealed class MainViewModel : ObservableObject, IShellActions
 
         Engine.Start();
         _timer.Start();
-        RestoreLastReference();
+        RestoreStartupReference();
     }
 
     /// <summary>Encerra threads e libera hardware.</summary>
@@ -357,12 +467,13 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         }
     }
 
+    /// <summary>Carrega a volta ideal do sistema para a pista atual.</summary>
     public void LoadDemoLap()
     {
-        ReferenceLap lap = DemoReferenceLapFactory.Create();
-        ApplyReference(lap, TryWriteDemoFile(lap) ? AppPaths.DemoLapFile : null);
+        LoadSystemReference(_selectedTrack);
+        TrackPanel.ReloadReferences();
 
-        ShellMessage = "Volta demo carregada. Pise no freio para iniciar o primeiro desafio.";
+        ShellMessage = $"Volta ideal de {_selectedTrack.ShortName} carregada. Pise no freio para começar.";
     }
 
     private void LoadReferenceWithDialog()
@@ -374,9 +485,27 @@ public sealed class MainViewModel : ObservableObject, IShellActions
             CheckFileExists = true
         };
 
-        if (dialog.ShowDialog() == true)
+        if (dialog.ShowDialog() != true)
         {
-            LoadReferenceFromFile(dialog.FileName);
+            return;
+        }
+
+        string imported;
+
+        try
+        {
+            imported = ImportReferenceFile(dialog.FileName);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            ShellMessage = exception.Message;
+            return;
+        }
+
+        if (LoadReferenceFromFile(imported))
+        {
+            TrackPanel.ReloadReferences();
+            TrackPanel.SelectReferenceFromPath(imported);
         }
     }
 
@@ -400,29 +529,33 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         Engine.LoadReference(lap);
         Training.Reset();
 
-        if (!string.IsNullOrWhiteSpace(path))
-        {
-            _settings.LastReferencePath = path;
-        }
+        _settings.LastReferencePath = string.IsNullOrWhiteSpace(path) ? string.Empty : path;
 
-        ReferenceTitle = $"{lap.Name} · {lap.DurationSeconds:0.0} s · {Engine.Session.Zones.Count} zonas";
+        ReferenceTitle = $"{_selectedTrack.ShortName} · {lap.DurationSeconds:0.0} s · {Engine.Session.Zones.Count} zonas";
     }
 
-    /// <summary>Recarrega a última referência usada, se o arquivo ainda existir.</summary>
-    private void RestoreLastReference()
+    /// <summary>
+    /// Abre o aplicativo pronto para treinar: Interlagos (ou a pista salva) com a volta ideal
+    /// do sistema, ou com a última telemetria do piloto para aquela pista.
+    /// </summary>
+    private void RestoreStartupReference()
     {
-        string path = _settings.LastReferencePath;
+        string lastPath = _settings.LastReferencePath;
+        bool restoreFile = !string.IsNullOrWhiteSpace(lastPath) &&
+                           File.Exists(lastPath) &&
+                           IsTrackReferenceFile(_selectedTrack, lastPath);
 
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (restoreFile && LoadReferenceFromFile(lastPath))
         {
-            ShellMessage = "Pronto. Carregue uma referência (ou use a volta demo) e comece a frear.";
+            TrackPanel.ReloadReferences();
+            TrackPanel.SelectReferenceFromPath(lastPath);
+            ShellMessage = $"{_selectedTrack.ShortName}: referência {Path.GetFileName(lastPath)} recarregada.";
             return;
         }
 
-        if (!LoadReferenceFromFile(path))
-        {
-            ShellMessage = "Pronto. A última referência não pôde ser recarregada.";
-        }
+        LoadSystemReference(_selectedTrack);
+        TrackPanel.ReloadReferences();
+        ShellMessage = $"{_selectedTrack.ShortName} pronta: volta ideal do sistema carregada. Pise no freio para treinar.";
     }
 
     /// <summary>
@@ -541,23 +674,6 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         return assembly.GetName().Version?.ToString(3) ?? "0.0.0";
     }
 
-    private static bool TryWriteDemoFile(ReferenceLap lap)
-    {
-        try
-        {
-            ReferenceLapCsvWriter.WriteFile(lap, AppPaths.DemoLapFile);
-            return true;
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-
-        return false;
-    }
-
     /// <summary>Arma ou cancela a gravação de uma volta do iRacing.</summary>
     private void ToggleRecording()
     {
@@ -625,25 +741,24 @@ public sealed class MainViewModel : ObservableObject, IShellActions
 
     private void SaveAndLoadRecordedLap(ReferenceLap lap)
     {
-        string path = AppPaths.RecordedLapFile(DateTime.Now);
+        string path;
 
         try
         {
-            ReferenceLapCsvWriter.WriteFile(lap, path);
+            path = _referenceLibrary.SaveLap(_selectedTrack, lap);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             ApplyReference(lap, null);
-            ShellMessage = $"Volta gravada, mas o arquivo não pôde ser salvo: {ex.Message}";
+            ShellMessage = $"Volta gravada, mas o arquivo não pôde ser salvo: {exception.Message}";
             return;
         }
 
         ApplyReference(lap, path);
-        ReferenceTitle = string.Create(
-            CultureInfo.InvariantCulture,
-            $"{lap.Name} · {lap.DurationSeconds:0.0} s · {Engine.Session.Zones.Count} zonas");
+        TrackPanel.ReloadReferences();
+        TrackPanel.SelectReferenceFromPath(path);
         ShellMessage = string.Create(
             CultureInfo.InvariantCulture,
-            $"Volta gravada e salva em {Path.GetFileName(path)} — {Engine.Session.Zones.Count} zonas de frenagem.");
+            $"Volta gravada em {_selectedTrack.ShortName} — {Engine.Session.Zones.Count} zonas de frenagem.");
     }
 }
