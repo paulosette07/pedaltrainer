@@ -60,6 +60,24 @@ public sealed class SimTelemetrySource : ICarTelemetrySource
         }
     }
 
+    public SimulatorInfo? ActiveSimulator
+    {
+        get
+        {
+            lock (_gate)
+            {
+                if (!_connected)
+                {
+                    return null;
+                }
+
+                return _activeReaderIndex >= 0 && _activeReaderIndex < _readers.Count
+                    ? _readers[_activeReaderIndex].Simulator
+                    : null;
+            }
+        }
+    }
+
     public string StatusDescription
     {
         get

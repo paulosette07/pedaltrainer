@@ -15,6 +15,13 @@ public interface ICarTelemetrySource : IDisposable
     /// <summary>Nome curto do simulador realmente conectado (vazio quando nenhum).</summary>
     string ConnectedSimulatorName { get; }
 
+    /// <summary>
+    /// Simulador que está publicando agora (nulo quando nenhum). Na detecção automática é o
+    /// único jeito de saber qual jogo respondeu — a tela de telemetria usa isso para trocar
+    /// o perfil assim que o jogo conecta.
+    /// </summary>
+    SimulatorInfo? ActiveSimulator { get; }
+
     /// <summary>Verdadeiro quando o simulador está aberto e publicando telemetria.</summary>
     bool IsConnected { get; }
 

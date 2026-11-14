@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using PedalTrainer.App.Services;
 using PedalTrainer.App.ViewModels;
 using PedalTrainer.Core.Drills;
 using PedalTrainer.Core.Services;
@@ -29,6 +30,7 @@ public partial class App : Application
         services.AddSingleton<DrillProgramStore>();
         services.AddSingleton<TrackStore>();
         services.AddSingleton<ReferenceLibrary>();
+        services.AddSingleton<TelemetryOverlayController>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
 

@@ -25,8 +25,15 @@ public static class NativeWindow
 
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(IntPtr handle, int command);
+
+    [DllImport("user32.dll")]
+    public static extern bool SetProcessDPIAware();
 }
 "@
+
+# GetWindowRect devolve coordenadas virtuais sem DPI awareness, e a captura sairia
+# pegando uma area maior que a janela (tudo encolhido na imagem).
+[NativeWindow]::SetProcessDPIAware() | Out-Null
 
 $exe = Join-Path $PSScriptRoot "..\..\src\PedalTrainer.App\bin\Debug\net8.0-windows\PedalTrainer.exe"
 

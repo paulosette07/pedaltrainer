@@ -1,0 +1,581 @@
+<UserControl x:Class="PedalTrainer.App.Views.TelemetryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:PedalTrainer.App.Controls"
+             Background="Transparent"
+             TextOptions.TextFormattingMode="Display">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="0,0,8,0"
+                  Focusable="False">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= Cabeçalho ================= -->
+        <DockPanel Grid.Row="0" Margin="2,0,0,12" LastChildFill="True">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Content="{Binding OverlayButtonText}"
+                        Style="{StaticResource SecondaryButton}"
+                        Command="{Binding ToggleOverlayCommand}"
+                        ToolTip="Abre uma janela compacta, por cima do simulador, para acompanhar enquanto joga" />
+            </StackPanel>
+
+            <StackPanel>
+                <TextBlock Text="TELEMETRIA" Style="{StaticResource SectionText}" />
+                <TextBlock Text="O que o jogo escolhido publica, gravado em arquivo dentro da pasta telemetria."
+                           Style="{StaticResource BodyText}"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           Margin="0,4,0,0" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- ================= Melhor volta ================= -->
+        <Border Grid.Row="1" Style="{StaticResource RaisedCardBorder}" Margin="0,0,0,16">
+            <Grid MinHeight="104">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="150" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Linha 1: rótulo e progresso na volta. -->
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                           Text="MELHOR VOLTA"
+                           Style="{StaticResource SectionText}"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="1"
+                           Text="{Binding LapProgressText}"
+                           Style="{StaticResource CaptionText}"
+                           FontSize="10"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center" />
+
+                <!-- Linha 2: nome da referência e o delta grande. -->
+                <TextBlock Grid.Row="1" Grid.Column="0"
+                           Text="{Binding BestLapTitle}"
+                           Style="{StaticResource BodyText}"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding BestLapTitle}"
+                           VerticalAlignment="Center"
+                           Margin="0,4,16,0" />
+                <TextBlock Grid.Row="1" Grid.Column="1"
+                           Text="{Binding DeltaText}"
+                           FontFamily="{StaticResource MonoFont}"
+                           FontSize="30"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsDeltaAhead}" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsDeltaBehind}" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <!-- Linha 3: legenda do delta (melhor / última volta). -->
+                <TextBlock Grid.Row="2" Grid.Column="1"
+                           HorizontalAlignment="Right"
+                           Style="{StaticResource CaptionText}"
+                           FontSize="9"
+                           Margin="0,2,0,0">
+                    <Run Text="delta · melhor " />
+                    <Run Text="{Binding BestDeltaText, Mode=OneWay}" />
+                    <Run Text=" · última " />
+                    <Run Text="{Binding LastLapDeltaText, Mode=OneWay}" />
+                </TextBlock>
+
+                <!-- Linha 4: comparativo ponto a ponto e o motivo de não comparar. -->
+                <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="VELOCIDADE" Style="{StaticResource CaptionText}" FontSize="9" />
+                            <TextBlock Text="{Binding SpeedCompareText}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontSize="11.5"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       Margin="0,2,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="FREIO" Style="{StaticResource CaptionText}" FontSize="9" />
+                            <TextBlock Text="{Binding BrakeCompareText}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontSize="11.5"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       Margin="0,2,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="ACELERADOR" Style="{StaticResource CaptionText}" FontSize="9" />
+                            <TextBlock Text="{Binding ThrottleCompareText}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontSize="11.5"
+                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                       Margin="0,2,0,0" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Text="{Binding BestLapHint}" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+                                <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                <Setter Property="Margin" Value="0,8,0,0" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CanCompareBestLap}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ================= Traço da volta ================= -->
+        <Border Grid.Row="2" Style="{StaticResource RaisedCardBorder}" Margin="0,0,0,16">
+            <StackPanel>
+                <DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="VOLTA" Style="{StaticResource CaptionText}" FontSize="10"
+                                   VerticalAlignment="Bottom" Margin="0,0,8,4" />
+                        <TextBlock Text="{Binding LapTimeText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="22"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <StackPanel>
+                        <TextBlock Text="TRAÇO DA VOLTA" Style="{StaticResource SectionText}" />
+                        <TextBlock Text="{Binding TraceCaption}"
+                                   Style="{StaticResource CaptionText}"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,4,0,0"
+                                   TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </DockPanel>
+
+                <controls:TelemetryTracePlot x:Name="LapTrace" Height="196" Margin="0,14,0,0" />
+
+                <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="2*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="FREIO" Style="{StaticResource CaptionText}" FontSize="10" />
+                        <TextBlock Text="{Binding BrakeText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="24"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource DangerBrush}"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="ACELERADOR" Style="{StaticResource CaptionText}" FontSize="10" />
+                        <TextBlock Text="{Binding ThrottleText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="24"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource ThrottleBrush}"
+                                   Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Margin="0,0,0,2">
+                        <TextBlock Text="{Binding SectorStatusText}" TextWrapping="Wrap"
+                                   Style="{StaticResource CaptionText}"
+                                   Foreground="{StaticResource TextSecondaryBrush}" />
+                        <TextBlock Text="{Binding CompositeText}"
+                                   Style="{StaticResource BodyText}"
+                                   FontSize="12"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,3,0,0" />
+                        <TextBlock Text="{Binding BestSectorLapText}"
+                                   Style="{StaticResource CaptionText}"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,3,0,0" />
+                        <TextBlock Text="{Binding BeatenText}"
+                                   Style="{StaticResource CaptionText}"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   Margin="0,3,0,0" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ================= Ao vivo ================= -->
+            <Border Grid.Column="0" Style="{StaticResource CardBorder}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0">
+                        <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{StaticResource DangerBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding ConnectionText}"
+                                   Style="{StaticResource SectionText}"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+
+                    <TextBlock Grid.Row="1"
+                               Text="{Binding StatusText}"
+                               Style="{StaticResource CaptionText}"
+                               Margin="16,3,0,0"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <StackPanel Grid.Row="2" Margin="0,14,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding SpeedText}"
+                                       FontFamily="{StaticResource MonoFont}"
+                                       FontSize="46"
+                                       FontWeight="Bold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="False">
+                                                <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="km/h" Style="{StaticResource MetricUnitText}" FontSize="13" Margin="6,0,0,10" />
+
+                            <StackPanel Orientation="Horizontal" Margin="22,0,0,10" VerticalAlignment="Bottom">
+                                <TextBlock Text="VOLTA" Style="{StaticResource CaptionText}" FontSize="10" Margin="0,0,5,0" />
+                                <TextBlock Text="{Binding LapText}"
+                                           FontFamily="{StaticResource MonoFont}"
+                                           FontSize="13"
+                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                                <TextBlock Text="·" Style="{StaticResource CaptionText}" Margin="8,0,8,0" />
+                                <TextBlock Text="{Binding LapPositionText}"
+                                           FontFamily="{StaticResource MonoFont}"
+                                           FontSize="13"
+                                           Foreground="{StaticResource TextPrimaryBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Rectangle Height="1" Fill="{StaticResource BorderBrush}" Margin="0,14,0,14" />
+
+                        <DockPanel LastChildFill="False">
+                            <TextBlock DockPanel.Dock="Left"
+                                       Text="FREIO"
+                                       Style="{StaticResource CaptionText}"
+                                       FontSize="10" />
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding BrakeText}"
+                                       Style="{StaticResource CaptionText}"
+                                       FontFamily="{StaticResource MonoFont}" />
+                        </DockPanel>
+                        <ProgressBar Style="{StaticResource FlatProgress}"
+                                     Height="12"
+                                     Maximum="100"
+                                     Foreground="{StaticResource DangerBrush}"
+                                     Value="{Binding BrakePercent, Mode=OneWay}"
+                                     Margin="0,4,0,14" />
+
+                        <DockPanel LastChildFill="False">
+                            <TextBlock DockPanel.Dock="Left"
+                                       Text="ACELERADOR"
+                                       Style="{StaticResource CaptionText}"
+                                       FontSize="10" />
+                            <TextBlock DockPanel.Dock="Right"
+                                       Text="{Binding ThrottleText}"
+                                       Style="{StaticResource CaptionText}"
+                                       FontFamily="{StaticResource MonoFont}" />
+                        </DockPanel>
+                        <ProgressBar Style="{StaticResource FlatProgress}"
+                                     Height="12"
+                                     Maximum="100"
+                                     Foreground="{StaticResource ThrottleBrush}"
+                                     Value="{Binding ThrottlePercent, Mode=OneWay}"
+                                     Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <Rectangle Grid.Row="3"
+                               Height="1"
+                               Fill="{StaticResource BorderBrush}"
+                               Margin="0,16,0,10" />
+
+                    <DockPanel Grid.Row="4" LastChildFill="False">
+                        <TextBlock DockPanel.Dock="Left"
+                                   Text="TEMPO DE SESSÃO"
+                                   Style="{StaticResource CaptionText}"
+                                   FontSize="10" />
+                        <TextBlock DockPanel.Dock="Right"
+                                   Text="{Binding SessionTimeText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                    </DockPanel>
+                </Grid>
+            </Border>
+
+            <!-- ================= Configuração do jogo ================= -->
+            <Border Grid.Column="2" Style="{StaticResource CardBorder}" VerticalAlignment="Stretch">
+                <StackPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right"
+                                Content="Trocar jogo"
+                                Style="{StaticResource SecondaryButton}"
+                                Padding="10,5"
+                                FontSize="11"
+                                Command="{Binding ShowSimulatorSettingsCommand}" />
+                        <TextBlock Text="CONFIGURAÇÃO DO JOGO" Style="{StaticResource SectionText}" VerticalAlignment="Center" />
+                    </DockPanel>
+
+                    <TextBlock Text="{Binding ProfileName}"
+                               Style="{StaticResource TitleText}"
+                               Margin="0,10,0,0"
+                               TextTrimming="CharacterEllipsis" />
+
+                    <TextBlock Text="{Binding DataSourceText}"
+                               Style="{StaticResource CaptionText}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,6,0,0" />
+
+                    <Rectangle Height="1" Fill="{StaticResource BorderBrush}" Margin="0,12,0,10" />
+
+                    <TextBlock Text="BLOCOS DE MEMÓRIA" Style="{StaticResource CaptionText}" FontSize="10" />
+                    <TextBlock Text="{Binding MemoryMapText}"
+                               FontFamily="{StaticResource MonoFont}"
+                               FontSize="11"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,3,0,0" />
+
+                    <TextBlock Text="CANAIS PUBLICADOS" Style="{StaticResource CaptionText}" FontSize="10" Margin="0,10,0,0" />
+                    <TextBlock Text="{Binding ChannelsText}"
+                               Style="{StaticResource BodyText}"
+                               FontSize="11.5"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,3,0,0" />
+
+                    <TextBlock Text="TAXA DE GRAVAÇÃO" Style="{StaticResource CaptionText}" FontSize="10" Margin="0,10,0,0" />
+                    <TextBlock Text="{Binding RateText}"
+                               FontFamily="{StaticResource MonoFont}"
+                               FontSize="12"
+                               Foreground="{StaticResource AccentBrush}"
+                               Margin="0,3,0,0" />
+
+                    <Border Background="{StaticResource SurfaceBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="10,8"
+                            Margin="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="NO JOGO" Style="{StaticResource CaptionText}" FontSize="10" />
+                            <TextBlock Text="{Binding SetupHintText}"
+                                       Style="{StaticResource CaptionText}"
+                                       Foreground="{StaticResource AccentBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0" />
+                            <TextBlock Text="{Binding PluginText}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+                                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                        <Setter Property="TextWrapping" Value="Wrap" />
+                                        <Setter Property="Margin" Value="0,6,0,0" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding PluginText}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding MissingChannelsText}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionText}">
+                                        <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                        <Setter Property="TextWrapping" Value="Wrap" />
+                                        <Setter Property="Margin" Value="0,6,0,0" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding MissingChannelsText}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ================= Arquivo de telemetria ================= -->
+        <Border Grid.Row="4" Style="{StaticResource RaisedCardBorder}" Margin="0,14,0,0" VerticalAlignment="Top">
+            <StackPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right"
+                            Content="{Binding RecordButtonText}"
+                            Style="{StaticResource PrimaryButton}"
+                            Command="{Binding ToggleRecordingCommand}" />
+                    <TextBlock Text="ARQUIVO DE TELEMETRIA" Style="{StaticResource SectionText}" VerticalAlignment="Center" />
+                </DockPanel>
+
+                <TextBlock Text="{Binding RecorderStatus}"
+                           Style="{StaticResource CaptionText}"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           Margin="0,10,0,0" />
+
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="140" />
+                        <ColumnDefinition Width="120" />
+                        <ColumnDefinition Width="120" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0,0,24,0">
+                        <TextBlock Text="ARQUIVO" Style="{StaticResource CaptionText}" FontSize="10" />
+                        <TextBlock Text="{Binding FileText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="11.5"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding FileText}"
+                                   Margin="0,3,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="AMOSTRAS" Style="{StaticResource CaptionText}" FontSize="10" />
+                        <TextBlock Text="{Binding SamplesText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,3,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="DURAÇÃO" Style="{StaticResource CaptionText}" FontSize="10" />
+                        <TextBlock Text="{Binding DurationText}"
+                                   FontFamily="{StaticResource MonoFont}"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="0,3,0,0" />
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="PASTA" Style="{StaticResource CaptionText}" FontSize="10" Margin="0,12,0,0" />
+                <TextBlock Text="{Binding FolderText}"
+                           FontFamily="{StaticResource MonoFont}"
+                           FontSize="10.5"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding FolderText}"
+                           Margin="0,4,0,0" />
+
+                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button Content="Abrir pasta"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="10,5"
+                            FontSize="11"
+                            Command="{Binding OpenFolderCommand}"
+                            Margin="0,0,8,0" />
+                    <Button Content="Abrir arquivo"
+                            Style="{StaticResource SecondaryButton}"
+                            Padding="10,5"
+                            FontSize="11"
+                            Command="{Binding OpenFileCommand}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ================= Janela destacada ================= -->
+        <Border Grid.Row="5" Style="{StaticResource CardBorder}" Margin="0,14,0,0">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="FUNDO" Style="{StaticResource CaptionText}" FontSize="10"
+                               VerticalAlignment="Center" Margin="0,0,8,0"
+                               ToolTip="Transparência do fundo da janela destacada: 0 deixa só os números sobre o jogo" />
+                    <Slider Style="{StaticResource FlatSlider}"
+                            Width="130"
+                            Minimum="0"
+                            Maximum="1"
+                            SmallChange="0.05"
+                            LargeChange="0.1"
+                            Value="{Binding OverlayOpacity, Mode=TwoWay}"
+                            ToolTip="Transparência do fundo da janela destacada: 0 deixa só os números sobre o jogo" />
+                    <CheckBox Style="{StaticResource FlatCheckBox}"
+                              Content="Sempre no topo"
+                              IsChecked="{Binding OverlayPinned, Mode=TwoWay}"
+                              Margin="16,0,0,0"
+                              VerticalAlignment="Center" />
+                </StackPanel>
+
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="JANELA DESTACADA" Style="{StaticResource SectionText}" />
+                    <TextBlock Text="Uma janela compacta com velocidade, pedais, delta e o traço da volta para deixar por cima do jogo. O fundo pode ficar transparente; arraste pelo cabeçalho para o canto da tela."
+                               Style="{StaticResource CaptionText}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,4,12,0" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+    </ScrollViewer>
+</UserControl>

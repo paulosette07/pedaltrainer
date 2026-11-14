@@ -48,5 +48,17 @@ public sealed class AppSettings
     /// <summary>Mostra a taxa real de aquisição do controlador na barra superior.</summary>
     public bool ShowInputRate { get; set; } = true;
 
+    /// <summary>Mantém a janela destacada da telemetria acima do simulador.</summary>
+    public bool TelemetryOverlayTopmost { get; set; } = true;
+
+    /// <summary>Transparência do fundo da janela destacada da telemetria (0 a 1).</summary>
+    public double TelemetryOverlayOpacity { get; set; } = 0.92;
+
+    /// <summary>Largura da janela destacada, lembrada entre sessões (0 = tamanho padrão).</summary>
+    public double TelemetryOverlayWidth { get; set; }
+
+    /// <summary>Altura da janela destacada, lembrada entre sessões (0 = tamanho padrão).</summary>
+    public double TelemetryOverlayHeight { get; set; }
+
     public AppSettings Clone() => (AppSettings)MemberwiseClone();
 }

@@ -30,6 +30,13 @@ public static class AppPaths
     public static string TrackReferencesDirectory(string trackId) =>
         Path.Combine(TracksDirectory, "references", SafeTrackFolder(trackId));
 
+    /// <summary>Pasta com os melhores trechos (um arquivo por pista).</summary>
+    public static string BestSectorsDirectory => Path.Combine(TracksDirectory, "best-sectors");
+
+    /// <summary>Arquivo dos melhores trechos de uma pista.</summary>
+    public static string BestSectorsFile(string trackId) =>
+        Path.Combine(BestSectorsDirectory, SafeTrackFolder(trackId) + ".json");
+
     public static string DemoLapFile => Path.Combine(SamplesDirectory, "demo-lap.csv");
 
     /// <summary>Nome de pasta seguro a partir do identificador da pista.</summary>

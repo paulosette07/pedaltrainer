@@ -9,6 +9,8 @@ public sealed class NullCarTelemetrySource : ICarTelemetrySource
 
     public string ConnectedSimulatorName => string.Empty;
 
+    public SimulatorInfo? ActiveSimulator => null;
+
     public bool IsConnected => false;
 
     public string StatusDescription => "Simulador: não conectado";

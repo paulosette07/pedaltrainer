@@ -32,8 +32,9 @@ Detalhes:
 - O Windows pode mostrar o aviso do SmartScreen na primeira execução (binário sem
   assinatura digital). Clique em **Mais informações → Executar assim mesmo** — veja
   [Aviso do SmartScreen](#aviso-do-smartscreen) para o motivo e para a correção definitiva.
-- Não há instalador: baixe, coloque numa pasta e execute. Os dados ficam em
-  `%APPDATA%\PedalTrainer` — nada é escrito ao lado do executável.
+- Não há instalador: baixe, coloque numa pasta e execute. Preferências, referências e
+  traçados ficam em `%APPDATA%\PedalTrainer`; a exceção são os CSV de telemetria, gravados na
+  pasta `telemetria` ao lado do executável.
 
 ---
 
@@ -90,6 +91,7 @@ A correção definitiva é assinar o executável — veja [Assinatura digital](#
 | **Programas** | Biblioteca de treinos do tipo "pise rápido até 20%, segure e solte devagar", com alvo sorteado por repetição. O painel **PRÓXIMA CURVA** desenha a próxima repetição antes, durante e depois de cada uma. Programas são arquivos JSON editáveis. |
 | **Calibração** | Descobre qual eixo do controlador é o freio e qual é o acelerador, aprende a faixa bruta do pedal e ajusta zona morta, curva e suavização. |
 | **Configurações** | Simulador de onde vem a telemetria, rigor do treino (gatilho de frenagem, banda de tolerância), janela do gráfico, alinhamento por distância, escolha do controlador e do modelo de pedal. |
+| **Telemetria** | Configuração do jogo em uso (blocos de memória, canais publicados, taxa e o que ligar no simulador), valores ao vivo, **comparação com a melhor volta** (delta, melhor e última volta, velocidade/freio/acelerador da referência no mesmo ponto), gravação em CSV na pasta `telemetria` e a janela destacada para deixar por cima do jogo. |
 
 ---
 
@@ -366,7 +368,7 @@ O app é dividido em uma biblioteca de domínio testável e uma casca WPF fina.
 ```
 PedalTrainer.Core   domínio puro: entrada, referência, treino, drills, telemetria, persistência
 PedalTrainer.App    WPF: janela, views, view models, controles de desenho e tema
-PedalTrainer.Tests  xUnit, 220 testes cobrindo o núcleo sem precisar de hardware
+PedalTrainer.Tests  xUnit, 276 testes cobrindo o núcleo sem precisar de hardware
 PedalTrainer.Probe  ferramenta de console para inspecionar controladores e eixos
 ```
 
@@ -399,13 +401,65 @@ acontece na thread de UI, e nenhuma chamada de UI acontece na thread do motor.
 | `LapSpeedProfile` / `IdealLapFactory` | Volta ideal a partir do raio de cada curva, com frenagem, aceleração e arrasto. |
 | `ReferenceLibrary` / `TrackStore` | Referências por pista (sistema e arquivos do piloto) e traçados importados em disco. |
 | `TrackMap` / `TrackMapPainter` | Controle WPF que desenha o circuito, as zonas de frenagem e os marcadores do carro e da referência. |
+| `BestLapComparer` / `BestLapComparison` | Delta com a melhor volta integrado por distância, com o melhor e o último delta da volta e os valores da referência no ponto atual. |
+| `BestLapComparisonText` | Formata os textos da comparação (sinal, casas decimais, unidade) para que a tela e a janela destacada mostrem o mesmo número. |
 | `SettingsStore` / `CalibrationStore` | Persistência em JSON no perfil do usuário. |
 
 ---
 
+## Telemetria
+
+A tela **Telemetria** mostra exatamente o que o jogo escolhido publica e grava tudo em
+arquivo, sem inventar canal que o simulador não manda:
+
+- **Configuração do jogo** — blocos de memória lidos, canais publicados, taxa de gravação e o
+  ajuste necessário dentro do simulador. Os canais que o jogo *não* publica aparecem
+  listados, em vez de virarem colunas vazias no arquivo.
+- **Ao vivo** — velocidade, freio, acelerador, volta e tempo de sessão.
+- **Melhor volta** — o cartão do topo compara, o tempo todo, com a volta de referência
+  carregada: delta acumulado na volta (verde à frente, vermelho atrás), o melhor delta e o
+  da última volta, e velocidade/freio/acelerador da referência no mesmo ponto da pista. Sem
+  posição na pista, o cartão explica o motivo em vez de mostrar número inventado.
+- **Traço da volta** — desenha freio (vermelho) e acelerador (verde) sobre a distância da
+  pista, com a posição do carro marcada e os trechos em que a última volta bateu o melhor
+  setor pintados no chão do gráfico. O eixo X é a posição na pista, então a mesma curva
+  aparece no mesmo lugar em todas as voltas. Sem o jogo publicando posição, o gráfico desenha
+  a volta de referência carregada e avisa que é ela.
+- **Melhores trechos** — a volta é cortada em 20 setores e o app guarda o melhor tempo de cada
+  um entre todas as voltas daquela pista, não só o da melhor volta: uma volta lenta que acerta
+  um trecho continua valendo. A tela mostra quantos setores já têm marca, o tempo da volta
+  composta por esses melhores trechos e quantos a última volta melhorou. Os tempos ficam em
+  `tracks\best-sectors\<pista>.json` e sobrevivem ao fechamento do programa.
+- **Arquivo de telemetria** — cria um CSV novo por gravação na pasta `telemetria`, na raiz do
+  programa (ao lado do executável). Se essa pasta não aceitar escrita, o arquivo vai para
+  `%APPDATA%\PedalTrainer\telemetria` e a tela mostra o caminho em uso.
+- **Janela destacada** — abre uma janela compacta, arrastável pelo cabeçalho, com velocidade,
+  pedais, delta da melhor volta e o traço da volta, para deixar por cima do simulador durante a
+  pilotagem. Ela pode ficar sempre no topo, o fundo tem transparência ajustável na própria
+  janela (em 0% sobram só os números e o gráfico sobre o jogo) e a janela é **redimensionável
+  pelas bordas**, com o gráfico crescendo junto. As três preferências ficam salvas.
+
+O CSV começa com um cabeçalho de comentários (`#`) que descreve a gravação — simulador,
+perfil, blocos de memória, canais, taxa, início e ajuste no jogo — e depois a linha de
+colunas. Cada linha seguinte é uma amostra:
+
+| Coluna | Conteúdo |
+| --- | --- |
+| `tempo_gravacao_s` | segundos desde o início da gravação |
+| `velocidade_kmh` | velocidade publicada pelo jogo |
+| `freio_pct` / `acelerador_pct` | 0 a 100 |
+| `posicao_volta_pct` | fração da volta percorrida |
+| `volta` | número da volta |
+| `tempo_sessao_s` | tempo de sessão (somente nos jogos que publicam) |
+
+O arquivo sai em UTF-8 com BOM, então o Excel abre com os acentos no lugar. A escrita fica
+numa thread própria: disco lento não trava a interface, e a taxa vem do perfil do jogo.
+
 ## Onde ficam os arquivos
 
-Tudo em `%APPDATA%\PedalTrainer` (nada é gravado ao lado do .exe):
+Preferências, referências e traçados ficam em `%APPDATA%\PedalTrainer`. A exceção é a
+telemetria: os CSV vão para a pasta `telemetria` ao lado do executável (ou para
+`%APPDATA%\PedalTrainer\telemetria` se aquela pasta não aceitar escrita).
 
 ```
 %APPDATA%\PedalTrainer\
@@ -419,6 +473,8 @@ Tudo em `%APPDATA%\PedalTrainer` (nada é gravado ao lado do .exe):
 └── tracks\
     ├── maps\                              traçados importados pelo piloto
     │   └── minha-pista.json
+    ├── best-sectors\                      melhores trechos guardados por pista
+    │   └── interlagos.json
     └── references\                        uma pasta por pista
         ├── interlagos\
         │   └── volta-interlagos-20260101-153000.csv
@@ -469,7 +525,7 @@ dotnet build PedalTrainer.slnx -c Release
 # alternativa com o SDK 8
 dotnet build src/PedalTrainer.App/PedalTrainer.App.csproj -c Release
 
-# rodar os testes (220 testes)
+# rodar os testes (276 testes)
 dotnet test tests/PedalTrainer.Tests/PedalTrainer.Tests.csproj -c Release
 
 # rodar a partir do código
@@ -599,6 +655,34 @@ powershell -ExecutionPolicy Bypass -File tools/branding/New-AppIcon.ps1
 ---
 
 ## Histórico
+
+### 1.7.0
+
+- Tela **Telemetria** com a configuração de cada simulador: blocos de memória lidos, canais
+  publicados, taxa de gravação e o que ligar dentro do jogo.
+- Gravação contínua em CSV dentro da pasta `telemetria`, na raiz do programa, com cabeçalho
+  que descreve a sessão e apenas as colunas que o jogo publica.
+- Janela destacada, opcionalmente sempre no topo, para acompanhar velocidade, pedais, o delta
+  para a melhor volta e o **traço da volta** por cima do simulador. O fundo dela é de verdade
+  translúcido: a janela é transparente e só o painel é pintado, então em 0% sobram apenas os
+  números e o gráfico sobre a imagem do jogo — o texto nunca fica apagado junto com o fundo.
+- **Janela destacada redimensionável**: a janela sem moldura ganhou borda de redimensionamento
+  (as oito direções) e o gráfico ocupa a área que sobra, crescendo junto com ela — mais
+  largura vira mais marcas de distância no eixo, mais altura vira mais curso de pedal visível.
+  O tamanho escolhido fica salvo em `settings.json`.
+- **Comparação com a melhor volta sempre visível**: a tela mostra o delta acumulado contra a
+  referência, o melhor delta da volta, o da última volta e os valores da referência
+  (velocidade, freio, acelerador) no mesmo ponto da pista; a janela destacada leva o delta.
+  O delta é integrado **por distância**, então vale mesmo quando você freia em outro
+  instante, e o mesmo texto é usado nos dois lugares.
+- **Traço da volta na tela**: freio e acelerador desenhados sobre a distância da pista, com a
+  posição do carro marcada e os trechos em que a última volta bateu o melhor setor pintados no
+  chão do gráfico. Sem o jogo publicando posição, o gráfico mostra a volta de referência.
+- **Melhores trechos guardados por pista**: a volta é cortada em 20 setores e o app mantém o
+  melhor tempo de cada um entre todas as voltas daquela pista — uma volta lenta que acerta um
+  trecho continua contando —, com a volta composta pelos melhores trechos e o total de setores
+  já marcados. Os tempos ficam em `tracks\best-sectors\<pista>.json`.
+- 276 testes (eram 262).
 
 ### 1.6.0
 

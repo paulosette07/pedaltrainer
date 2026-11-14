@@ -1,0 +1,269 @@
+<Window x:Class="PedalTrainer.App.Views.TelemetryOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:PedalTrainer.App.Controls"
+        Title="Pedal Trainer — telemetria"
+        Width="380" Height="420"
+        MinWidth="320" MinHeight="384"
+        MaxWidth="960" MaxHeight="900"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="CanResize"
+        ShowInTaskbar="True"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <!-- O fundo do painel é pintado pelo código com a transparência escolhida: o texto fica
+         sempre opaco e o jogo aparece atrás do painel. -->
+    <Border x:Name="Panel"
+            Padding="12,10"
+            BorderThickness="1"
+            CornerRadius="10"
+            BorderBrush="#2A313B">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" MinHeight="120" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Cabeçalho: arrasta a janela, fixa no topo e fecha. -->
+            <DockPanel Grid.Row="0"
+                       x:Name="DragArea"
+                       Background="Transparent"
+                       MouseLeftButtonDown="OnHeaderMouseDown">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="PinButton"
+                            Style="{StaticResource SecondaryButton}"
+                            Content="Topo"
+                            Padding="7,2"
+                            FontSize="10"
+                            Click="OnPinClick"
+                            ToolTip="Mantém a janela acima do simulador" />
+                    <Button Style="{StaticResource SecondaryButton}"
+                            Padding="7,2"
+                            Margin="5,0,0,0"
+                            FontSize="10"
+                            Click="OnCloseClick"
+                            ToolTip="Fechar a janela destacada"
+                            Content="X" />
+                </StackPanel>
+
+                <DockPanel VerticalAlignment="Center">
+                    <Ellipse DockPanel.Dock="Left"
+                             Width="7"
+                             Height="7"
+                             Margin="0,0,7,0"
+                             VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource DangerBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                        <Setter Property="Fill" Value="{StaticResource AccentBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding ProfileName}"
+                               Style="{StaticResource SectionText}"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+            </DockPanel>
+
+            <!-- Velocidade, volta e delta: os três números que o piloto olha em movimento. -->
+            <Grid Grid.Row="1" Margin="0,8,0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="{Binding SpeedText}"
+                               FontFamily="{StaticResource MonoFont}"
+                               FontSize="38"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsConnected}" Value="False">
+                                        <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="km/h"
+                               Style="{StaticResource MetricUnitText}"
+                               FontSize="11"
+                               Margin="5,0,0,7" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <TextBlock Text="{Binding LapTimeText}"
+                               FontFamily="{StaticResource MonoFont}"
+                               FontSize="15"
+                               Foreground="{StaticResource TextPrimaryBrush}" />
+                    <TextBlock Style="{StaticResource CaptionText}" FontSize="9" Margin="0,1,0,0">
+                        <Run Text="VOLTA" />
+                        <Run Text=" " />
+                        <Run Text="{Binding LapText, Mode=OneWay}" />
+                        <Run Text=" · " />
+                        <Run Text="{Binding LapPositionText, Mode=OneWay}" />
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <TextBlock Text="MELHOR VOLTA"
+                               Style="{StaticResource CaptionText}"
+                               FontSize="8.5"
+                               HorizontalAlignment="Right" />
+                    <TextBlock Text="{Binding DeltaText}"
+                               FontFamily="{StaticResource MonoFont}"
+                               FontSize="17"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Right"
+                               ToolTip="{Binding BestLapTitle}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource TextMutedBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDeltaAhead}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsDeltaBehind}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+
+            <!-- Pedais -->
+            <StackPanel Grid.Row="2">
+                <DockPanel LastChildFill="False">
+                    <TextBlock DockPanel.Dock="Left"
+                               Text="FREIO"
+                               Style="{StaticResource CaptionText}"
+                               FontSize="10" />
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="{Binding BrakeText}"
+                               Style="{StaticResource CaptionText}"
+                               FontFamily="{StaticResource MonoFont}"
+                               FontSize="11.5" />
+                </DockPanel>
+                <ProgressBar Style="{StaticResource FlatProgress}"
+                             Height="8"
+                             Maximum="100"
+                             Foreground="{StaticResource DangerBrush}"
+                             Value="{Binding BrakePercent, Mode=OneWay}"
+                             Margin="0,2,0,7" />
+
+                <DockPanel LastChildFill="False">
+                    <TextBlock DockPanel.Dock="Left"
+                               Text="ACELERADOR"
+                               Style="{StaticResource CaptionText}"
+                               FontSize="10" />
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="{Binding ThrottleText}"
+                               Style="{StaticResource CaptionText}"
+                               FontFamily="{StaticResource MonoFont}"
+                               FontSize="11.5" />
+                </DockPanel>
+                <ProgressBar Style="{StaticResource FlatProgress}"
+                             Height="8"
+                             Maximum="100"
+                             Foreground="{StaticResource ThrottleBrush}"
+                             Value="{Binding ThrottlePercent, Mode=OneWay}"
+                             Margin="0,2,0,0" />
+            </StackPanel>
+
+            <!-- Traço da volta: o mesmo gráfico da tela de telemetria. -->
+            <Grid Grid.Row="3" Margin="0,8,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0">
+                    <TextBlock DockPanel.Dock="Left"
+                               Text="TRAÇO DA VOLTA"
+                               Style="{StaticResource CaptionText}"
+                               FontSize="9" />
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="{Binding SectorCountText}"
+                               Style="{StaticResource CaptionText}"
+                               FontSize="9"
+                               HorizontalAlignment="Right" />
+                </DockPanel>
+
+                <controls:TelemetryTracePlot Grid.Row="1"
+                                             x:Name="OverlayTrace"
+                                             MinHeight="120"
+                                             Margin="0,4,0,0" />
+            </Grid>
+
+            <!-- Rodapé: gravação e transparência do fundo. -->
+            <StackPanel Grid.Row="4" Margin="0,8,0,2">
+                <DockPanel>
+                    <Ellipse DockPanel.Dock="Left"
+                             Width="6"
+                             Height="6"
+                             Margin="0,0,6,0"
+                             VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource TextMutedBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                        <Setter Property="Fill" Value="{StaticResource DangerBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding RecorderStatus}"
+                               Style="{StaticResource CaptionText}"
+                               FontSize="10"
+                               TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+
+                <DockPanel Margin="0,3,0,0">
+                    <TextBlock DockPanel.Dock="Left"
+                               Text="FUNDO"
+                               Style="{StaticResource CaptionText}"
+                               FontSize="9"
+                               VerticalAlignment="Center"
+                               ToolTip="0 deixa só os números sobre o jogo" />
+                    <TextBlock DockPanel.Dock="Right"
+                               Text="{Binding OverlayOpacity, StringFormat={}{0:P0}}"
+                               Style="{StaticResource CaptionText}"
+                               FontFamily="{StaticResource MonoFont}"
+                               FontSize="9"
+                               VerticalAlignment="Center"
+                               Margin="8,0,0,0" />
+                    <Slider Style="{StaticResource FlatSlider}"
+                            Width="150"
+                            HorizontalAlignment="Right"
+                            Margin="0,0,8,0"
+                            Minimum="0"
+                            Maximum="1"
+                            SmallChange="0.05"
+                            LargeChange="0.1"
+                            Value="{Binding OverlayOpacity, Mode=TwoWay}"
+                            ToolTip="Transparência do fundo: 0 deixa só os números sobre o jogo" />
+                </DockPanel>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

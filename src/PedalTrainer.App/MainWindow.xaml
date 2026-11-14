@@ -65,7 +65,8 @@
                 BorderBrush="{StaticResource BorderBrush}"
                 BorderThickness="0,0,0,1"
                 Padding="18,11">
-            <DockPanel LastChildFill="True">
+            <StackPanel>
+                <DockPanel LastChildFill="True">
 
                 <!-- A direita é docada primeiro: assim os botões nunca são empurrados para fora. -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -155,8 +156,7 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" MinWidth="190" />
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" MinWidth="150" />
                     </Grid.ColumnDefinitions>
 
                     <Border Grid.Column="0"
@@ -187,14 +187,17 @@
                                    ToolTip="iRacing, Assetto Corsa Competizione, Assetto Corsa EVO, Automobilista 2 e Le Mans Ultimate" />
                     </StackPanel>
 
-                    <ListBox Grid.Column="2"
-                             VerticalAlignment="Center"
-                             Style="{StaticResource NavList}"
-                             ItemContainerStyle="{StaticResource NavItem}"
-                             ItemsSource="{Binding ScreenTitles}"
-                             SelectedIndex="{Binding SelectedScreenIndex}" />
                 </Grid>
-            </DockPanel>
+                </DockPanel>
+
+                <!-- Navegação em linha própria: cinco telas não cabem ao lado dos botões. -->
+                <ListBox Margin="38,8,0,0"
+                         HorizontalAlignment="Left"
+                         Style="{StaticResource NavList}"
+                         ItemContainerStyle="{StaticResource NavItem}"
+                         ItemsSource="{Binding ScreenTitles}"
+                         SelectedIndex="{Binding SelectedScreenIndex}" />
+            </StackPanel>
         </Border>
 
         <!-- ================= Conteúdo ================= -->

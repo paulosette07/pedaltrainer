@@ -20,6 +20,10 @@
                 <views:DrillView />
             </DataTemplate>
 
+            <DataTemplate DataType="{x:Type viewModels:TelemetryViewModel}">
+                <views:TelemetryView />
+            </DataTemplate>
+
             <DataTemplate DataType="{x:Type viewModels:CalibrationViewModel}">
                 <views:CalibrationView />
             </DataTemplate>

@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
+using PedalTrainer.App.Services;
 using PedalTrainer.Core.Drills;
 using PedalTrainer.Core.Input;
 using PedalTrainer.Core.Input.Pedals;
@@ -63,9 +64,11 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         CalibrationStore calibrationStore,
         DrillProgramStore drillProgramStore,
         TrackStore trackStore,
-        ReferenceLibrary referenceLibrary)
+        ReferenceLibrary referenceLibrary,
+        TelemetryOverlayController overlayController)
     {
         Engine = engine ?? throw new ArgumentNullException(nameof(engine));
+        ArgumentNullException.ThrowIfNull(overlayController);
         _settingsStore = settingsStore ?? throw new ArgumentNullException(nameof(settingsStore));
         _calibrationStore = calibrationStore ?? throw new ArgumentNullException(nameof(calibrationStore));
         _trackStore = trackStore ?? throw new ArgumentNullException(nameof(trackStore));
@@ -84,22 +87,34 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         Drills = new DrillViewModel(engine, drillProgramStore ?? throw new ArgumentNullException(nameof(drillProgramStore)));
         Calibration = new CalibrationViewModel(this);
         SettingsScreen = new SettingsViewModel(this);
+        Telemetry = new TelemetryViewModel(engine, overlayController, _settings);
+        Telemetry.SyncTrack(_selectedTrack);
 
         _screens.Add(Training);
         _screens.Add(Drills);
+        _screens.Add(Telemetry);
         _screens.Add(Calibration);
         _screens.Add(SettingsScreen);
         _currentScreen = Training;
 
-        ScreenTitles = new ObservableCollection<string> { "Treino", "Programas", "Calibração", "Configurações" };
+        ScreenTitles = new ObservableCollection<string>
+        {
+            "Treino",
+            "Programas",
+            "Telemetria",
+            "Calibração",
+            "Configurações"
+        };
 
         LoadReferenceCommand = new RelayCommand(LoadReferenceWithDialog);
         LoadDemoCommand = new RelayCommand(LoadDemoLap);
         RecordLapCommand = new RelayCommand(ToggleRecording);
         ShowTrainingCommand = new RelayCommand(() => SelectedScreenIndex = 0);
         ShowDrillsCommand = new RelayCommand(() => SelectedScreenIndex = 1);
-        ShowCalibrationCommand = new RelayCommand(() => SelectedScreenIndex = 2);
-        ShowSettingsCommand = new RelayCommand(() => SelectedScreenIndex = 3);
+        ShowTelemetryCommand = new RelayCommand(() => SelectedScreenIndex = 2);
+        ShowCalibrationCommand = new RelayCommand(() => SelectedScreenIndex = 3);
+        ShowSettingsCommand = new RelayCommand(() => SelectedScreenIndex = 4);
+        Telemetry.SimulatorSettingsRequested += (_, _) => SelectedScreenIndex = 4;
 
         _timer = new DispatcherTimer(DispatcherPriority.Render)
         {
@@ -117,6 +132,9 @@ public sealed class MainViewModel : ObservableObject, IShellActions
 
     /// <summary>Tela de programas de treino (exercícios de freio e acelerador).</summary>
     public DrillViewModel Drills { get; }
+
+    /// <summary>Tela de telemetria: o que o jogo publica, gravação em arquivo e janela destacada.</summary>
+    public TelemetryViewModel Telemetry { get; }
 
     /// <summary>Pistas disponíveis: do sistema e importadas.</summary>
     public IReadOnlyList<TrackDefinition> Tracks => _tracks;
@@ -146,6 +164,8 @@ public sealed class MainViewModel : ObservableObject, IShellActions
     public IRelayCommand ShowTrainingCommand { get; }
 
     public IRelayCommand ShowDrillsCommand { get; }
+
+    public IRelayCommand ShowTelemetryCommand { get; }
 
     public IRelayCommand ShowCalibrationCommand { get; }
 
@@ -299,6 +319,9 @@ public sealed class MainViewModel : ObservableObject, IShellActions
     {
         Engine.SetCarTelemetrySource(SimTelemetrySourceFactory.Create(_simulator));
         SimulatorSummary = Engine.CarSource.StatusDescription;
+
+        // A tela de telemetria passa a mostrar a configuração do jogo em uso.
+        Telemetry.SyncSimulator(_simulator);
     }
 
     /// <summary>Troca a pista e já carrega a volta ideal dela como referência.</summary>
@@ -311,6 +334,7 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         _settingsStore.Save(_settings);
 
         LoadSystemReference(track);
+        Telemetry.SyncTrack(track);
         OnPropertyChanged(nameof(SelectedTrack));
 
         ShellMessage = $"Pista: {track.Name} · {track.LocationText}.";
@@ -416,8 +440,13 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         _timer.Stop();
         _settings.UseSimulatedPedals = Engine.Device is SimulatedPedalDevice;
         _settings.LastDeviceGuid = SelectedDeviceGuid ?? Guid.Empty;
+        _settings.TelemetryOverlayTopmost = Telemetry.OverlayPinned;
+        _settings.TelemetryOverlayOpacity = Telemetry.OverlayOpacity;
+        _settings.TelemetryOverlayWidth = Telemetry.OverlayWidth;
+        _settings.TelemetryOverlayHeight = Telemetry.OverlayHeight;
         _settingsStore.Save(_settings);
         _calibrationStore.Save(_calibration);
+        Telemetry.Shutdown();
         Engine.Dispose();
     }
 
@@ -613,6 +642,7 @@ public sealed class MainViewModel : ObservableObject, IShellActions
         PumpRecording();
 
         Training.Apply(Engine.Latest);
+        Telemetry.Apply(Engine.Latest.Car);
 
         // O estado dos programas é sempre atualizado (para não perder resultados quando a
         // tela está oculta); o gráfico só é reconstruído quando ela está visível.
